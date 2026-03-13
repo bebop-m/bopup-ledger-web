@@ -5,7 +5,7 @@
     "fx": "frankfurter",
     "dividend": "akshare"
   },
-  "updatedAt": "2026-03-13T10:12:27.257844Z",
+  "updatedAt": "2026-03-13T11:27:44.951413Z",
   "rates": {
     "CNY": 1,
     "USD": 6.8691,
@@ -14,87 +14,87 @@
   "quotes": {
     "AAPL": {
       "symbol": "AAPL",
-      "name": "Apple",
+      "name": "苹果",
       "market": "US",
       "currency": "USD",
-      "price": 213.4
+      "price": 255.76
     },
     "MSFT": {
       "symbol": "MSFT",
-      "name": "Microsoft",
+      "name": "微软",
       "market": "US",
       "currency": "USD",
-      "price": 419.15
+      "price": 401.86
     },
     "KO": {
       "symbol": "KO",
-      "name": "Coca-Cola",
+      "name": "可口可乐",
       "market": "US",
       "currency": "USD",
-      "price": 68.22
+      "price": 77.61
     },
     "JNJ": {
       "symbol": "JNJ",
-      "name": "Johnson & Johnson",
+      "name": "强生",
       "market": "US",
       "currency": "USD",
-      "price": 162.35
+      "price": 242.04
     },
     "PG": {
       "symbol": "PG",
-      "name": "P&G",
+      "name": "宝洁",
       "market": "US",
       "currency": "USD",
-      "price": 171.28
+      "price": 150.5
     },
     "PEP": {
       "symbol": "PEP",
-      "name": "PepsiCo",
+      "name": "百事",
       "market": "US",
       "currency": "USD",
-      "price": 174.06
+      "price": 158.86
     },
     "MCD": {
       "symbol": "MCD",
-      "name": "McDonald's",
+      "name": "麦当劳",
       "market": "US",
       "currency": "USD",
-      "price": 301.42
+      "price": 323.91
     },
     "O": {
       "symbol": "O",
-      "name": "Realty Income",
+      "name": "Realty Income Corp",
       "market": "US",
       "currency": "USD",
-      "price": 54.1
+      "price": 65.03
     },
     "VZ": {
       "symbol": "VZ",
-      "name": "Verizon",
+      "name": "威瑞森通讯",
       "market": "US",
       "currency": "USD",
-      "price": 41.26
+      "price": 50.63
     },
     "XOM": {
       "symbol": "XOM",
-      "name": "Exxon Mobil",
+      "name": "埃克森美孚",
       "market": "US",
       "currency": "USD",
-      "price": 109.74
+      "price": 153.53
     },
     "CVX": {
       "symbol": "CVX",
-      "name": "Chevron",
+      "name": "雪佛龙",
       "market": "US",
       "currency": "USD",
-      "price": 154.32
+      "price": 196.97
     },
     "00700.HK": {
       "symbol": "00700.HK",
       "name": "腾讯控股",
       "market": "HK",
       "currency": "HKD",
-      "price": 389.6,
+      "price": 547.5,
       "dividendPerShareTtm": 4.5,
       "dividendYield": 0.008219
     },
@@ -103,7 +103,7 @@
       "name": "中国移动",
       "market": "HK",
       "currency": "HKD",
-      "price": 77.15,
+      "price": 79.95,
       "dividendPerShareTtm": 5.24,
       "dividendYield": 0.065541
     },
@@ -112,7 +112,7 @@
       "name": "工商银行",
       "market": "HK",
       "currency": "HKD",
-      "price": 4.33,
+      "price": 6.33,
       "dividendPerShareTtm": 0.336134,
       "dividendYield": 0.053102
     },
@@ -121,7 +121,7 @@
       "name": "中国海洋石油",
       "market": "HK",
       "currency": "HKD",
-      "price": 18.42,
+      "price": 29.76,
       "dividendPerShareTtm": 1.39,
       "dividendYield": 0.046707
     },
@@ -130,7 +130,7 @@
       "name": "汇丰控股",
       "market": "HK",
       "currency": "HKD",
-      "price": 68.35,
+      "price": 122.5,
       "dividendPerShareTtm": 5.855956,
       "dividendYield": 0.047804
     },
@@ -139,7 +139,7 @@
       "name": "香港交易所",
       "market": "HK",
       "currency": "HKD",
-      "price": 256.2,
+      "price": 401.4,
       "dividendPerShareTtm": 12.52,
       "dividendYield": 0.031191
     },
@@ -148,54 +148,54 @@
       "name": "贵州茅台",
       "market": "CN",
       "currency": "CNY",
-      "price": 1688,
+      "price": 1413.64,
       "dividendPerShareTtm": 51.63,
-      "dividendYield": 0.030586
+      "dividendYield": 0.036523
     },
     "601318.SH": {
       "symbol": "601318.SH",
       "name": "中国平安",
       "market": "CN",
       "currency": "CNY",
-      "price": 46.22,
+      "price": 61.2,
       "dividendPerShareTtm": 2.57,
-      "dividendYield": 0.055604
+      "dividendYield": 0.041993
     },
     "600036.SH": {
       "symbol": "600036.SH",
       "name": "招商银行",
       "market": "CN",
       "currency": "CNY",
-      "price": 34.58,
+      "price": 39.76,
       "dividendPerShareTtm": 3.013,
-      "dividendYield": 0.087131
+      "dividendYield": 0.07578
     },
     "600900.SH": {
       "symbol": "600900.SH",
       "name": "长江电力",
       "market": "CN",
       "currency": "CNY",
-      "price": 28.41,
+      "price": 27.42,
       "dividendPerShareTtm": 0.943,
-      "dividendYield": 0.033193
+      "dividendYield": 0.034391
     },
     "000651.SZ": {
       "symbol": "000651.SZ",
       "name": "格力电器",
       "market": "CN",
       "currency": "CNY",
-      "price": 41.86,
+      "price": 38.6,
       "dividendPerShareTtm": 4.0,
-      "dividendYield": 0.095557
+      "dividendYield": 0.103627
     },
     "300750.SZ": {
       "symbol": "300750.SZ",
       "name": "宁德时代",
       "market": "CN",
       "currency": "CNY",
-      "price": 192.65,
+      "price": 397.0,
       "dividendPerShareTtm": 5.56,
-      "dividendYield": 0.028861
+      "dividendYield": 0.014005
     }
   }
 }
