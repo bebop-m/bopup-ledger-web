@@ -1,0 +1,35 @@
+name: Update Market Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '2-59/5 * * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  update-market-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Update static market data
+        run: python scripts/update_market_data.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add data/market.json
+          git diff --staged --quiet || git commit -m "chore: refresh market data"
+          git push
