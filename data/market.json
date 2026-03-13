@@ -5,7 +5,7 @@
     "fx": "frankfurter",
     "dividend": "akshare"
   },
-  "updatedAt": "2026-03-13T19:56:08.939669Z",
+  "updatedAt": "2026-03-13T21:14:32.166460Z",
   "rates": {
     "CNY": 1,
     "USD": 6.8966,
@@ -17,77 +17,77 @@
       "name": "苹果",
       "market": "US",
       "currency": "USD",
-      "price": 250.395
+      "price": 250.12
     },
     "MSFT": {
       "symbol": "MSFT",
       "name": "微软",
       "market": "US",
       "currency": "USD",
-      "price": 395.42
+      "price": 395.55
     },
     "KO": {
       "symbol": "KO",
       "name": "可口可乐",
       "market": "US",
       "currency": "USD",
-      "price": 77.275
+      "price": 77.34
     },
     "JNJ": {
       "symbol": "JNJ",
       "name": "强生",
       "market": "US",
       "currency": "USD",
-      "price": 242.009
+      "price": 241.52
     },
     "PG": {
       "symbol": "PG",
       "name": "宝洁",
       "market": "US",
       "currency": "USD",
-      "price": 150.4
+      "price": 150.65
     },
     "PEP": {
       "symbol": "PEP",
       "name": "百事",
       "market": "US",
       "currency": "USD",
-      "price": 159.745
+      "price": 159.88
     },
     "MCD": {
       "symbol": "MCD",
       "name": "麦当劳",
       "market": "US",
       "currency": "USD",
-      "price": 325.98
+      "price": 326.46
     },
     "O": {
       "symbol": "O",
       "name": "Realty Income Corp",
       "market": "US",
       "currency": "USD",
-      "price": 64.435
+      "price": 64.44
     },
     "VZ": {
       "symbol": "VZ",
       "name": "威瑞森通讯",
       "market": "US",
       "currency": "USD",
-      "price": 51.325
+      "price": 51.38
     },
     "XOM": {
       "symbol": "XOM",
       "name": "埃克森美孚",
       "market": "US",
       "currency": "USD",
-      "price": 156.18
+      "price": 156.12
     },
     "CVX": {
       "symbol": "CVX",
       "name": "雪佛龙",
       "market": "US",
       "currency": "USD",
-      "price": 196.56
+      "price": 196.82
     },
     "00700.HK": {
       "symbol": "00700.HK",
