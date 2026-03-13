@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -19,11 +20,21 @@ HK_DIV_YIELD_TTM = '\u80a1\u606f\u7387TTM(%)'
 CN_DIV_PAY_DATE = '\u6d3e\u606f\u65e5'
 CN_DIV_EX_DATE = '\u9664\u6743\u65e5'
 CN_DIV_RATIO = '\u6d3e\u606f\u6bd4\u4f8b'
+DEFAULT_RATES = {'CNY': 1, 'USD': 7.22, 'HKD': 0.92}
 
 
 def load_watchlist():
     payload = json.loads(WATCHLIST_PATH.read_text(encoding='utf-8-sig'))
     return [str(symbol).strip().upper() for symbol in payload.get('symbols', []) if str(symbol).strip()]
+
+
+def load_previous_snapshot():
+    if not OUTPUT_PATH.exists():
+        return {}
+    try:
+        return json.loads(OUTPUT_PATH.read_text(encoding='utf-8-sig'))
+    except Exception:
+        return {}
 
 
 def safe_float(value, default=0.0):
@@ -43,6 +54,19 @@ def safe_float(value, default=0.0):
         return float(value)
     except Exception:
         return default
+
+
+def fetch_with_retry(label, fn, *args, retries=3, delay_seconds=2):
+    last_error = None
+    for attempt in range(1, retries + 1):
+        try:
+            return fn(*args)
+        except Exception as error:
+            last_error = error
+            print(f'{label} failed on attempt {attempt}/{retries}: {error}')
+            if attempt < retries:
+                time.sleep(delay_seconds)
+    raise last_error
 
 
 def to_cn_symbol(code):
@@ -122,7 +146,7 @@ def fetch_hk_dividend_metrics(watchlist):
     for symbol in targets:
         code = symbol.split('.')[0]
         try:
-            frame = ak.stock_hk_financial_indicator_em(symbol=code)
+            frame = fetch_with_retry(f'hk dividend {symbol}', ak.stock_hk_financial_indicator_em, code, retries=2, delay_seconds=1)
             if frame is None or frame.empty:
                 continue
             row = frame.iloc[0]
@@ -153,7 +177,7 @@ def fetch_cn_dividend_metrics(watchlist, quotes):
     for symbol in targets:
         code = symbol.split('.')[0]
         try:
-            frame = ak.stock_dividend_cninfo(symbol=code)
+            frame = fetch_with_retry(f'cn dividend {symbol}', ak.stock_dividend_cninfo, code, retries=2, delay_seconds=1)
             if frame is None or frame.empty:
                 continue
 
@@ -195,20 +219,56 @@ def fetch_rates():
     }
 
 
+def seed_quotes_from_previous(previous_snapshot, watchlist):
+    previous_quotes = previous_snapshot.get('quotes') or {}
+    seeded = {}
+    for symbol in watchlist:
+        if symbol in previous_quotes:
+            seeded[symbol] = previous_quotes[symbol]
+    return seeded
+
+
 def main():
     watchlist = load_watchlist()
-    quotes = {}
-    quotes.update(fetch_cn_quotes(watchlist))
-    quotes.update(fetch_hk_quotes(watchlist))
-    quotes.update(fetch_us_quotes(watchlist))
+    previous_snapshot = load_previous_snapshot()
+    quotes = seed_quotes_from_previous(previous_snapshot, watchlist)
+    rates = {**DEFAULT_RATES, **(previous_snapshot.get('rates') or {})}
 
-    hk_metrics = fetch_hk_dividend_metrics(watchlist)
-    cn_metrics = fetch_cn_dividend_metrics(watchlist, quotes)
+    try:
+        quotes.update(fetch_with_retry('cn quotes', fetch_cn_quotes, watchlist, retries=3, delay_seconds=2))
+    except Exception as error:
+        print(f'cn quote refresh skipped: {error}')
 
-    for symbol, metric in {**hk_metrics, **cn_metrics}.items():
-        if symbol not in quotes:
-            continue
-        quotes[symbol].update(metric)
+    try:
+        quotes.update(fetch_with_retry('hk quotes', fetch_hk_quotes, watchlist, retries=3, delay_seconds=2))
+    except Exception as error:
+        print(f'hk quote refresh skipped: {error}')
+
+    try:
+        quotes.update(fetch_with_retry('us quotes', fetch_us_quotes, watchlist, retries=3, delay_seconds=2))
+    except Exception as error:
+        print(f'us quote refresh skipped: {error}')
+
+    try:
+        hk_metrics = fetch_hk_dividend_metrics(watchlist)
+        for symbol, metric in hk_metrics.items():
+            if symbol in quotes:
+                quotes[symbol].update(metric)
+    except Exception as error:
+        print(f'hk dividend batch skipped: {error}')
+
+    try:
+        cn_metrics = fetch_cn_dividend_metrics(watchlist, quotes)
+        for symbol, metric in cn_metrics.items():
+            if symbol in quotes:
+                quotes[symbol].update(metric)
+    except Exception as error:
+        print(f'cn dividend batch skipped: {error}')
+
+    try:
+        rates = fetch_with_retry('fx rates', fetch_rates, retries=3, delay_seconds=2)
+    except Exception as error:
+        print(f'fx refresh skipped: {error}')
 
     payload = {
         'ok': True,
@@ -218,7 +278,7 @@ def main():
             'dividend': 'akshare'
         },
         'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-        'rates': fetch_rates(),
+        'rates': rates,
         'quotes': quotes
     }
     OUTPUT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
