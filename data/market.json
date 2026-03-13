@@ -5,11 +5,11 @@
     "fx": "frankfurter",
     "dividend": "akshare"
   },
-  "updatedAt": "2026-03-13T14:46:42.844752Z",
+  "updatedAt": "2026-03-13T16:19:24.312935Z",
   "rates": {
     "CNY": 1,
-    "USD": 6.8691,
-    "HKD": 0.8776
+    "USD": 6.8966,
+    "HKD": 0.8811
   },
   "quotes": {
     "AAPL": {
@@ -17,77 +17,77 @@
       "name": "苹果",
       "market": "US",
       "currency": "USD",
-      "price": 254.33
+      "price": 252.28
     },
     "MSFT": {
       "symbol": "MSFT",
       "name": "微软",
       "market": "US",
       "currency": "USD",
-      "price": 401.795
+      "price": 396.19
     },
     "KO": {
       "symbol": "KO",
       "name": "可口可乐",
       "market": "US",
       "currency": "USD",
-      "price": 77.465
+      "price": 77.635
     },
     "JNJ": {
       "symbol": "JNJ",
       "name": "强生",
       "market": "US",
       "currency": "USD",
-      "price": 244.34
+      "price": 243.525
     },
     "PG": {
       "symbol": "PG",
       "name": "宝洁",
       "market": "US",
       "currency": "USD",
-      "price": 151.41
+      "price": 151.35
     },
     "PEP": {
       "symbol": "PEP",
       "name": "百事",
       "market": "US",
       "currency": "USD",
-      "price": 160.68
+      "price": 160.18
     },
     "MCD": {
       "symbol": "MCD",
       "name": "麦当劳",
       "market": "US",
       "currency": "USD",
-      "price": 325.4
+      "price": 325.31
     },
     "O": {
       "symbol": "O",
       "name": "Realty Income Corp",
       "market": "US",
       "currency": "USD",
-      "price": 65.355
+      "price": 65.155
     },
     "VZ": {
       "symbol": "VZ",
       "name": "威瑞森通讯",
       "market": "US",
       "currency": "USD",
-      "price": 51.29
+      "price": 51.315
     },
     "XOM": {
       "symbol": "XOM",
       "name": "埃克森美孚",
       "market": "US",
       "currency": "USD",
-      "price": 154.51
+      "price": 154.76
     },
     "CVX": {
       "symbol": "CVX",
       "name": "雪佛龙",
       "market": "US",
       "currency": "USD",
-      "price": 195.49
+      "price": 195.2
     },
     "00700.HK": {
       "symbol": "00700.HK",
