@@ -1,6 +1,8 @@
 const STORAGE_KEY = 'bopup-ledger-web-state';
 const MARKET_ENDPOINT = './data/market.json';
 const GITHUB_MARKET_CONTENTS_API = 'https://api.github.com/repos/bebop-m/bopup-ledger-web/contents/data/market.json';
+const TENCENT_REALTIME_ENDPOINT = 'https://qt.gtimg.cn/q=';
+const TENCENT_BATCH_SIZE = 60;
 const LEGEND_COLLAPSED_COUNT = 8;
 const MASK_AMOUNT = '******';
 const MASK_PRICE = '***.**';
@@ -226,6 +228,49 @@ function normalizeSymbol(rawSymbol) {
     return /^[689]/.test(value) ? `${value}.SH` : `${value}.SZ`;
   }
   return value;
+}
+
+function toTencentSymbol(rawSymbol) {
+  const symbol = normalizeSymbol(rawSymbol);
+  if (!symbol) {
+    return '';
+  }
+  if (/\.HK$/.test(symbol)) {
+    return `hk${symbol.slice(0, -3).padStart(5, '0')}`;
+  }
+  if (/\.SH$/.test(symbol)) {
+    return `sh${symbol.slice(0, -3)}`;
+  }
+  if (/\.SZ$/.test(symbol)) {
+    return `sz${symbol.slice(0, -3)}`;
+  }
+  return `us${symbol}`;
+}
+
+function fromTencentSymbol(rawSymbol) {
+  const value = String(rawSymbol || '').trim();
+  const lower = value.toLowerCase();
+  if (lower.startsWith('hk')) {
+    return `${value.slice(2).toUpperCase().padStart(5, '0')}.HK`;
+  }
+  if (lower.startsWith('sh')) {
+    return `${value.slice(2).toUpperCase()}.SH`;
+  }
+  if (lower.startsWith('sz')) {
+    return `${value.slice(2).toUpperCase()}.SZ`;
+  }
+  if (lower.startsWith('us')) {
+    return value.slice(2).toUpperCase();
+  }
+  return normalizeSymbol(value);
+}
+
+function chunkItems(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 function inferQuote(symbol) {
@@ -814,12 +859,38 @@ async function refreshMarketData(options = {}) {
   state.syncing = true;
   refs.refreshButton.disabled = true;
 
+  let hasUpdates = false;
+  let lastError = null;
+
   try {
-    const payload = await loadLatestMarketSnapshot();
-    if (!payload || payload.ok === false) {
-      throw new Error(payload && payload.error ? payload.error : 'invalid market payload');
+    try {
+      const payload = await loadLatestMarketSnapshot();
+      if (!payload || payload.ok === false) {
+        throw new Error(payload && payload.error ? payload.error : 'invalid market payload');
+      }
+      applyMarketPayload(payload);
+      hasUpdates = true;
+    } catch (error) {
+      lastError = error;
+      console.warn('snapshot refresh failed', error);
     }
-    applyMarketPayload(payload);
+
+    try {
+      const realtimeQuotes = await loadRealtimeQuoteSnapshot();
+      if (Object.keys(realtimeQuotes).length) {
+        state.quotes = mergeQuotes(state.quotes, realtimeQuotes);
+        state.lastUpdatedAt = new Date().toISOString();
+        hasUpdates = true;
+      }
+    } catch (error) {
+      lastError = lastError || error;
+      console.warn('realtime quote refresh failed', error);
+    }
+
+    if (!hasUpdates) {
+      throw lastError || new Error('invalid market payload');
+    }
+
     saveState();
     renderApp();
   } catch (error) {
@@ -873,6 +944,113 @@ function decodeBase64Utf8(value) {
   const binary = atob(value);
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
   return new TextDecoder('utf-8').decode(bytes);
+}
+
+function getRealtimeSymbols() {
+  return Array.from(
+    new Set(
+      state.holdings
+        .map((item) => normalizeSymbol(item.symbol))
+        .filter(Boolean)
+    )
+  );
+}
+
+function loadTencentQuoteBatch(codeBatch) {
+  return new Promise((resolve, reject) => {
+    if (!codeBatch.length) {
+      resolve({});
+      return;
+    }
+
+    const script = document.createElement('script');
+    const globalKeys = codeBatch.map((code) => `v_${code}`);
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      script.remove();
+      globalKeys.forEach((key) => {
+        try {
+          delete window[key];
+        } catch (_error) {
+          window[key] = undefined;
+        }
+      });
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('tencent quote request timed out'));
+    }, 10000);
+
+    script.async = true;
+    script.charset = 'gb18030';
+    // Tencent returns executable JS, so we load it via <script> instead of fetch().
+    script.src = `${TENCENT_REALTIME_ENDPOINT}${codeBatch.join(',')}&_=${Date.now()}`;
+
+    script.onload = () => {
+      try {
+        const quotes = {};
+        codeBatch.forEach((code) => {
+          const payload = window[`v_${code}`];
+          if (typeof payload !== 'string' || !payload) {
+            return;
+          }
+          const fields = payload.split('~');
+          if (fields.length < 4) {
+            return;
+          }
+
+          const symbol = fromTencentSymbol(code);
+          const fallback = inferQuote(symbol);
+          const price = safeNumber(fields[3], safeNumber(fields[4], fallback.price));
+
+          if (price <= 0) {
+            return;
+          }
+
+          quotes[symbol] = {
+            symbol,
+            name: String(fields[1] || fallback.name || symbol).trim(),
+            market: fallback.market,
+            currency: fallback.currency,
+            price
+          };
+        });
+        resolve(quotes);
+      } catch (error) {
+        reject(error);
+      } finally {
+        cleanup();
+      }
+    };
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error(`tencent quote request failed for ${codeBatch.join(',')}`));
+    };
+
+    (document.head || document.body).appendChild(script);
+  });
+}
+
+async function loadRealtimeQuoteSnapshot() {
+  const symbols = getRealtimeSymbols();
+  if (!symbols.length) {
+    return {};
+  }
+
+  const realtimeQuotes = {};
+  const codeBatches = chunkItems(
+    symbols.map((symbol) => toTencentSymbol(symbol)).filter(Boolean),
+    TENCENT_BATCH_SIZE
+  );
+
+  for (const batch of codeBatches) {
+    const batchQuotes = await loadTencentQuoteBatch(batch);
+    Object.assign(realtimeQuotes, batchQuotes);
+  }
+
+  return realtimeQuotes;
 }
 
 async function cleanupLegacyCaches() {

@@ -1,5 +1,6 @@
 import json
 import math
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -12,13 +13,17 @@ DATA_DIR = ROOT / 'data'
 WATCHLIST_PATH = DATA_DIR / 'watchlist.json'
 OUTPUT_PATH = DATA_DIR / 'market.json'
 DEFAULT_RATES = {'CNY': 1, 'USD': 7.22, 'HKD': 0.92}
-QUOTE_ENDPOINT = 'https://query1.finance.yahoo.com/v7/finance/quote'
+TENCENT_QUOTE_ENDPOINT = 'https://qt.gtimg.cn/q='
 CHART_ENDPOINT = 'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
 REQUEST_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
                   '(KHTML, like Gecko) Chrome/134.0 Safari/537.36',
     'Accept': 'application/json,text/plain,*/*',
     'Accept-Language': 'en-US,en;q=0.9'
+}
+TENCENT_HEADERS = {
+    **REQUEST_HEADERS,
+    'Referer': 'https://gu.qq.com/'
 }
 
 
@@ -57,6 +62,14 @@ def fetch_json(url, params=None, timeout=20):
     return response.json()
 
 
+def fetch_text(url, params=None, timeout=20, encoding=None, headers=None):
+    response = requests.get(url, params=params, timeout=timeout, headers=headers or REQUEST_HEADERS)
+    response.raise_for_status()
+    if encoding:
+        response.encoding = encoding
+    return response.text
+
+
 def fetch_with_retry(label, fn, *args, retries=3, delay_seconds=2, **kwargs):
     last_error = None
     for attempt in range(1, retries + 1):
@@ -91,6 +104,31 @@ def from_yahoo_symbol(symbol):
     return normalized
 
 
+def to_tencent_symbol(symbol):
+    normalized = str(symbol).strip().upper()
+    if normalized.endswith('.HK'):
+        return f'hk{normalized[:-3].zfill(5)}'
+    if normalized.endswith('.SH'):
+        return f'sh{normalized[:-3]}'
+    if normalized.endswith('.SZ'):
+        return f'sz{normalized[:-3]}'
+    return f'us{normalized}'
+
+
+def from_tencent_symbol(symbol):
+    normalized = str(symbol).strip()
+    lower = normalized.lower()
+    if lower.startswith('hk'):
+        return f'{normalized[2:].upper().zfill(5)}.HK'
+    if lower.startswith('sh'):
+        return f'{normalized[2:].upper()}.SH'
+    if lower.startswith('sz'):
+        return f'{normalized[2:].upper()}.SZ'
+    if lower.startswith('us'):
+        return normalized[2:].upper()
+    return normalized.upper()
+
+
 def infer_market_currency(symbol):
     if symbol.endswith('.HK'):
         return 'HK', 'HKD'
@@ -99,29 +137,50 @@ def infer_market_currency(symbol):
     return 'US', 'USD'
 
 
-def fetch_quotes(watchlist):
-    yahoo_symbols = [to_yahoo_symbol(symbol) for symbol in watchlist]
-    payload = fetch_json(QUOTE_ENDPOINT, params={'symbols': ','.join(yahoo_symbols)})
-    results = (payload.get('quoteResponse') or {}).get('result') or []
-    quotes = {}
+def chunked(items, size):
+    for index in range(0, len(items), size):
+        yield items[index:index + size]
 
-    for item in results:
-        yahoo_symbol = str(item.get('symbol') or '').upper()
-        symbol = from_yahoo_symbol(yahoo_symbol)
-        market, currency = infer_market_currency(symbol)
-        price = safe_float(
-            item.get('regularMarketPrice'),
-            safe_float(item.get('postMarketPrice'), safe_float(item.get('previousClose'), 0))
+
+def parse_tencent_quote_payload(payload):
+    text = str(payload or '')
+    for match in re.finditer(r'v_([^=]+)="([^"]*)";?', text):
+        yield match.group(1), match.group(2).split('~')
+
+
+def fetch_quotes(watchlist):
+    quotes = {}
+    tencent_code_map = {to_tencent_symbol(symbol): symbol for symbol in watchlist}
+
+    for code_batch in chunked(list(tencent_code_map.keys()), 60):
+        payload = fetch_text(
+            TENCENT_QUOTE_ENDPOINT + ','.join(code_batch),
+            timeout=20,
+            encoding='gb18030',
+            headers=TENCENT_HEADERS
         )
-        quotes[symbol] = {
-            'symbol': symbol,
-            'name': str(item.get('shortName') or item.get('longName') or symbol).strip(),
-            'market': market,
-            'currency': currency,
-            'price': round(price, 6),
-            'dividendYield': 0,
-            'dividendPerShareTtm': 0
-        }
+
+        for raw_symbol, fields in parse_tencent_quote_payload(payload):
+            if len(fields) < 4:
+                continue
+
+            symbol = tencent_code_map.get(raw_symbol, from_tencent_symbol(raw_symbol))
+            market, currency = infer_market_currency(symbol)
+            price = safe_float(fields[3], safe_float(fields[4], 0))
+            name = str(fields[1] or symbol).strip()
+
+            if price <= 0:
+                continue
+
+            quotes[symbol] = {
+                'symbol': symbol,
+                'name': name,
+                'market': market,
+                'currency': currency,
+                'price': round(price, 6),
+                'dividendYield': 0,
+                'dividendPerShareTtm': 0
+            }
 
     return quotes
 
@@ -206,7 +265,7 @@ def main():
     rates = {**DEFAULT_RATES, **(previous_snapshot.get('rates') or {})}
 
     try:
-        fresh_quotes = fetch_with_retry('yahoo quotes', fetch_quotes, watchlist, retries=3, delay_seconds=2)
+        fresh_quotes = fetch_with_retry('tencent quotes', fetch_quotes, watchlist, retries=3, delay_seconds=2)
         quotes.update(fresh_quotes)
     except Exception as error:
         print(f'quote refresh skipped: {error}')
@@ -227,7 +286,7 @@ def main():
     payload = {
         'ok': True,
         'provider': {
-            'quote': 'yahoo-finance',
+            'quote': 'tencent-finance',
             'fx': 'frankfurter',
             'dividend': 'yahoo-finance'
         },

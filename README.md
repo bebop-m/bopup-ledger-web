@@ -20,7 +20,8 @@
 - 负债扣减总金额
 - 按持仓市值 / 股息率排序
 - 隐私隐藏
-- Yahoo Finance 定时更新价格
+- 腾讯股票接口定时更新价格
+- 打开页面时额外获取一次腾讯最新价格
 - Frankfurter 定时更新汇率
 - 港股 TTM 股息率自动更新
 - A 股 TTM 股息率自动计算
@@ -38,7 +39,7 @@
 ```text
 GitHub Actions
   -> 运行 Python 脚本
-  -> 从 Yahoo Finance 拉股票价格
+  -> 从腾讯股票接口拉股票价格
   -> 从 Yahoo Finance 拉股息历史并计算 TTM 股息率
   -> 从 Frankfurter 拉汇率
   -> 更新 data/market.json
@@ -47,6 +48,7 @@ GitHub Actions
 GitHub Pages
   -> 发布 main 分支根目录静态网页
   -> 页面刷新时读取 data/market.json
+  -> 页面加载后额外拉取一次腾讯最新价格
 ```
 
 ## 本地预览
@@ -96,7 +98,7 @@ http://127.0.0.1:4173/
 
 ### 数据来源
 
-- 港股 / A 股 / 美股价格：Yahoo Finance
+- 港股 / A 股 / 美股价格：腾讯股票接口
 - 汇率：Frankfurter
 - 港股 / A 股股息率：根据 Yahoo 股息历史计算最近 12 个月 TTM
 
