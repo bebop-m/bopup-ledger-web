@@ -1,26 +1,25 @@
 import json
+import math
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote
 
-import akshare as ak
-import pandas as pd
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / 'data'
 WATCHLIST_PATH = DATA_DIR / 'watchlist.json'
 OUTPUT_PATH = DATA_DIR / 'market.json'
-
-COL_CODE = '\u4ee3\u7801'
-COL_NAME = '\u540d\u79f0'
-COL_PRICE = '\u6700\u65b0\u4ef7'
-HK_DIV_PER_SHARE_TTM = '\u6bcf\u80a1\u80a1\u606fTTM(\u6e2f\u5143)'
-HK_DIV_YIELD_TTM = '\u80a1\u606f\u7387TTM(%)'
-CN_DIV_PAY_DATE = '\u6d3e\u606f\u65e5'
-CN_DIV_EX_DATE = '\u9664\u6743\u65e5'
-CN_DIV_RATIO = '\u6d3e\u606f\u6bd4\u4f8b'
 DEFAULT_RATES = {'CNY': 1, 'USD': 7.22, 'HKD': 0.92}
+QUOTE_ENDPOINT = 'https://query1.finance.yahoo.com/v7/finance/quote'
+CHART_ENDPOINT = 'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
+REQUEST_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                  '(KHTML, like Gecko) Chrome/134.0 Safari/537.36',
+    'Accept': 'application/json,text/plain,*/*',
+    'Accept-Language': 'en-US,en;q=0.9'
+}
 
 
 def load_watchlist():
@@ -46,21 +45,23 @@ def safe_float(value, default=0.0):
             return default
         value = cleaned
     try:
-        if pd.isna(value):
-            return default
-    except Exception:
-        pass
-    try:
-        return float(value)
+        parsed = float(value)
     except Exception:
         return default
+    return parsed if math.isfinite(parsed) else default
 
 
-def fetch_with_retry(label, fn, *args, retries=3, delay_seconds=2):
+def fetch_json(url, params=None, timeout=20):
+    response = requests.get(url, params=params, timeout=timeout, headers=REQUEST_HEADERS)
+    response.raise_for_status()
+    return response.json()
+
+
+def fetch_with_retry(label, fn, *args, retries=3, delay_seconds=2, **kwargs):
     last_error = None
     for attempt in range(1, retries + 1):
         try:
-            return fn(*args)
+            return fn(*args, **kwargs)
         except Exception as error:
             last_error = error
             print(f'{label} failed on attempt {attempt}/{retries}: {error}')
@@ -69,147 +70,117 @@ def fetch_with_retry(label, fn, *args, retries=3, delay_seconds=2):
     raise last_error
 
 
-def to_cn_symbol(code):
-    if len(code) != 6 or not code.isdigit():
-        return None
-    if code.startswith(('6', '9')):
-        return f'{code}.SH'
-    return f'{code}.SZ'
+def to_yahoo_symbol(symbol):
+    normalized = str(symbol).strip().upper()
+    if normalized.endswith('.HK'):
+        raw = normalized[:-3]
+        digits = raw.lstrip('0')
+        digits = digits.zfill(4) if digits else '0000'
+        return f'{digits}.HK'
+    if normalized.endswith('.SH'):
+        return f'{normalized[:-3]}.SS'
+    return normalized
 
 
-def fetch_cn_quotes(watchlist):
-    targets = {symbol for symbol in watchlist if symbol.endswith('.SH') or symbol.endswith('.SZ')}
-    if not targets:
-        return {}
-    frame = ak.stock_zh_a_spot_em()
+def from_yahoo_symbol(symbol):
+    normalized = str(symbol).strip().upper()
+    if normalized.endswith('.HK'):
+        return f'{normalized[:-3].zfill(5)}.HK'
+    if normalized.endswith('.SS'):
+        return f'{normalized[:-3]}.SH'
+    return normalized
+
+
+def infer_market_currency(symbol):
+    if symbol.endswith('.HK'):
+        return 'HK', 'HKD'
+    if symbol.endswith('.SH') or symbol.endswith('.SZ'):
+        return 'CN', 'CNY'
+    return 'US', 'USD'
+
+
+def fetch_quotes(watchlist):
+    yahoo_symbols = [to_yahoo_symbol(symbol) for symbol in watchlist]
+    payload = fetch_json(QUOTE_ENDPOINT, params={'symbols': ','.join(yahoo_symbols)})
+    results = (payload.get('quoteResponse') or {}).get('result') or []
     quotes = {}
-    for _, row in frame.iterrows():
-        code = str(row.get(COL_CODE, '')).strip()
-        symbol = to_cn_symbol(code)
-        if symbol not in targets:
-            continue
+
+    for item in results:
+        yahoo_symbol = str(item.get('symbol') or '').upper()
+        symbol = from_yahoo_symbol(yahoo_symbol)
+        market, currency = infer_market_currency(symbol)
+        price = safe_float(
+            item.get('regularMarketPrice'),
+            safe_float(item.get('postMarketPrice'), safe_float(item.get('previousClose'), 0))
+        )
         quotes[symbol] = {
             'symbol': symbol,
-            'name': str(row.get(COL_NAME, symbol)).strip(),
-            'market': 'CN',
-            'currency': 'CNY',
-            'price': safe_float(row.get(COL_PRICE, 0))
+            'name': str(item.get('shortName') or item.get('longName') or symbol).strip(),
+            'market': market,
+            'currency': currency,
+            'price': round(price, 6),
+            'dividendYield': 0,
+            'dividendPerShareTtm': 0
         }
+
     return quotes
 
 
-def fetch_hk_quotes(watchlist):
-    targets = {symbol for symbol in watchlist if symbol.endswith('.HK')}
-    if not targets:
-        return {}
-    frame = ak.stock_hk_main_board_spot_em()
-    quotes = {}
-    for _, row in frame.iterrows():
-        code = str(row.get(COL_CODE, '')).strip().zfill(5)
-        symbol = f'{code}.HK'
-        if symbol not in targets:
+def sum_ttm_dividends(dividend_events):
+    if not dividend_events:
+        return 0.0
+    threshold = datetime.now(timezone.utc) - timedelta(days=365)
+    total = 0.0
+    for event in dividend_events.values():
+        amount = safe_float(event.get('amount'), 0)
+        event_ts = event.get('date')
+        if amount <= 0 or not event_ts:
             continue
-        quotes[symbol] = {
-            'symbol': symbol,
-            'name': str(row.get(COL_NAME, symbol)).strip(),
-            'market': 'HK',
-            'currency': 'HKD',
-            'price': safe_float(row.get(COL_PRICE, 0))
-        }
-    return quotes
+        event_date = datetime.fromtimestamp(int(event_ts), tz=timezone.utc)
+        if event_date >= threshold:
+            total += amount
+    return round(total, 6)
 
 
-def fetch_us_quotes(watchlist):
-    targets = {symbol for symbol in watchlist if '.' not in symbol}
-    if not targets:
-        return {}
-    frame = ak.stock_us_spot_em()
-    quotes = {}
-    for _, row in frame.iterrows():
-        provider_code = str(row.get(COL_CODE, '')).strip().upper()
-        symbol = provider_code.split('.')[-1]
-        if symbol not in targets:
-            continue
-        quotes[symbol] = {
-            'symbol': symbol,
-            'name': str(row.get(COL_NAME, symbol)).strip(),
-            'market': 'US',
-            'currency': 'USD',
-            'price': safe_float(row.get(COL_PRICE, 0))
-        }
-    return quotes
+def fetch_dividend_metrics(symbol, current_price):
+    yahoo_symbol = to_yahoo_symbol(symbol)
+    payload = fetch_json(
+        CHART_ENDPOINT.format(symbol=quote(yahoo_symbol, safe='')),
+        params={'range': '2y', 'interval': '1d', 'events': 'div'}
+    )
+    result = ((payload.get('chart') or {}).get('result') or [None])[0] or {}
+    events = (result.get('events') or {}).get('dividends') or {}
+    dividend_per_share_ttm = sum_ttm_dividends(events)
+    dividend_yield = (dividend_per_share_ttm / current_price) if current_price > 0 else 0.0
+    return {
+        'dividendPerShareTtm': round(dividend_per_share_ttm, 6),
+        'dividendYield': round(dividend_yield, 6)
+    }
 
 
-def fetch_hk_dividend_metrics(watchlist):
-    targets = sorted(symbol for symbol in watchlist if symbol.endswith('.HK'))
+def fetch_selected_dividend_metrics(watchlist, quotes):
     metrics = {}
-    for symbol in targets:
-        code = symbol.split('.')[0]
-        try:
-            frame = fetch_with_retry(f'hk dividend {symbol}', ak.stock_hk_financial_indicator_em, code, retries=2, delay_seconds=1)
-            if frame is None or frame.empty:
-                continue
-            row = frame.iloc[0]
-            dividend_per_share = safe_float(row.get(HK_DIV_PER_SHARE_TTM, 0))
-            dividend_yield_pct = safe_float(row.get(HK_DIV_YIELD_TTM, 0))
-            metrics[symbol] = {
-                'dividendPerShareTtm': round(dividend_per_share, 6),
-                'dividendYield': round(dividend_yield_pct / 100, 6)
-            }
-        except Exception as error:
-            print(f'hk dividend fetch failed for {symbol}: {error}')
-    return metrics
-
-
-def resolve_cn_dividend_date(row):
-    for field in (CN_DIV_PAY_DATE, CN_DIV_EX_DATE):
-        value = pd.to_datetime(row.get(field), errors='coerce')
-        if not pd.isna(value):
-            return value
-    return pd.NaT
-
-
-def fetch_cn_dividend_metrics(watchlist, quotes):
-    targets = sorted(symbol for symbol in watchlist if symbol.endswith('.SH') or symbol.endswith('.SZ'))
-    threshold = datetime.now(timezone.utc).date() - timedelta(days=365)
-    metrics = {}
+    targets = [symbol for symbol in watchlist if symbol.endswith('.HK') or symbol.endswith('.SH') or symbol.endswith('.SZ')]
 
     for symbol in targets:
-        code = symbol.split('.')[0]
+        price = safe_float((quotes.get(symbol) or {}).get('price'), 0)
         try:
-            frame = fetch_with_retry(f'cn dividend {symbol}', ak.stock_dividend_cninfo, code, retries=2, delay_seconds=1)
-            if frame is None or frame.empty:
-                continue
-
-            ttm_dividend_per_share = 0.0
-            for _, row in frame.iterrows():
-                dividend_date = resolve_cn_dividend_date(row)
-                if pd.isna(dividend_date) or dividend_date.date() < threshold:
-                    continue
-                per_ten_shares = safe_float(row.get(CN_DIV_RATIO, 0))
-                if per_ten_shares <= 0:
-                    continue
-                ttm_dividend_per_share += per_ten_shares / 10
-
-            price = safe_float((quotes.get(symbol) or {}).get('price', 0))
-            dividend_yield = (ttm_dividend_per_share / price) if price > 0 else 0.0
-            metrics[symbol] = {
-                'dividendPerShareTtm': round(ttm_dividend_per_share, 6),
-                'dividendYield': round(dividend_yield, 6)
-            }
+            metrics[symbol] = fetch_with_retry(
+                f'dividend {symbol}',
+                fetch_dividend_metrics,
+                symbol,
+                price,
+                retries=2,
+                delay_seconds=1
+            )
         except Exception as error:
-            print(f'cn dividend fetch failed for {symbol}: {error}')
+            print(f'dividend refresh skipped for {symbol}: {error}')
+
     return metrics
 
 
 def fetch_rates():
-    response = requests.get(
-        'https://api.frankfurter.dev/v1/latest?base=CNY&symbols=USD,HKD',
-        timeout=20,
-        headers={'User-Agent': 'bopup-ledger-gh-action'}
-    )
-    response.raise_for_status()
-    payload = response.json()
+    payload = fetch_json('https://api.frankfurter.dev/v1/latest?base=CNY&symbols=USD,HKD')
     usd = float(payload['rates']['USD'])
     hkd = float(payload['rates']['HKD'])
     return {
@@ -235,35 +206,18 @@ def main():
     rates = {**DEFAULT_RATES, **(previous_snapshot.get('rates') or {})}
 
     try:
-        quotes.update(fetch_with_retry('cn quotes', fetch_cn_quotes, watchlist, retries=3, delay_seconds=2))
+        fresh_quotes = fetch_with_retry('yahoo quotes', fetch_quotes, watchlist, retries=3, delay_seconds=2)
+        quotes.update(fresh_quotes)
     except Exception as error:
-        print(f'cn quote refresh skipped: {error}')
+        print(f'quote refresh skipped: {error}')
 
     try:
-        quotes.update(fetch_with_retry('hk quotes', fetch_hk_quotes, watchlist, retries=3, delay_seconds=2))
-    except Exception as error:
-        print(f'hk quote refresh skipped: {error}')
-
-    try:
-        quotes.update(fetch_with_retry('us quotes', fetch_us_quotes, watchlist, retries=3, delay_seconds=2))
-    except Exception as error:
-        print(f'us quote refresh skipped: {error}')
-
-    try:
-        hk_metrics = fetch_hk_dividend_metrics(watchlist)
-        for symbol, metric in hk_metrics.items():
+        dividend_metrics = fetch_selected_dividend_metrics(watchlist, quotes)
+        for symbol, metric in dividend_metrics.items():
             if symbol in quotes:
                 quotes[symbol].update(metric)
     except Exception as error:
-        print(f'hk dividend batch skipped: {error}')
-
-    try:
-        cn_metrics = fetch_cn_dividend_metrics(watchlist, quotes)
-        for symbol, metric in cn_metrics.items():
-            if symbol in quotes:
-                quotes[symbol].update(metric)
-    except Exception as error:
-        print(f'cn dividend batch skipped: {error}')
+        print(f'dividend refresh skipped: {error}')
 
     try:
         rates = fetch_with_retry('fx rates', fetch_rates, retries=3, delay_seconds=2)
@@ -273,9 +227,9 @@ def main():
     payload = {
         'ok': True,
         'provider': {
-            'quote': 'akshare',
+            'quote': 'yahoo-finance',
             'fx': 'frankfurter',
-            'dividend': 'akshare'
+            'dividend': 'yahoo-finance'
         },
         'updatedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
         'rates': rates,

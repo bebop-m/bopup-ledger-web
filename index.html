@@ -2,7 +2,10 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    >
     <meta name="theme-color" content="#152849">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -14,122 +17,156 @@
   </head>
   <body>
     <div class="app-shell">
-      <header class="topbar">
+      <header class="app-header">
         <div>
-          <p class="topbar-kicker">Mobile Ledger</p>
-          <h1 class="topbar-title">&#27874;&#26222;&#36134;&#26412;</h1>
+          <p class="app-kicker">Bopup Ledger</p>
+          <h1 class="app-title">&#27874;&#26222;&#36134;&#26412;</h1>
         </div>
-        <button id="privacyToggle" class="icon-button" type="button" aria-label="privacy toggle">
-          <svg class="icon-eye" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M2 12C4.7 7.8 8.1 5.7 12 5.7S19.3 7.8 22 12c-2.7 4.2-6.1 6.3-10 6.3S4.7 16.2 2 12Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
-            <circle cx="12" cy="12" r="3.1" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
-            <path class="eye-slash" d="M4 20L20 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        <button
+          id="privacyButton"
+          class="circle-button"
+          type="button"
+          aria-label="&#38544;&#34255;&#25110;&#26174;&#31034;&#37329;&#39069;"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M2 12C4.8 7.9 8.2 5.8 12 5.8S19.2 7.9 22 12c-2.8 4.1-6.2 6.2-10 6.2S4.8 16.1 2 12Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.9"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            ></path>
+            <circle
+              cx="12"
+              cy="12"
+              r="3.15"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.9"
+            ></circle>
+            <path
+              class="eye-slash"
+              d="M4 20L20 4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.9"
+              stroke-linecap="round"
+            ></path>
           </svg>
         </button>
       </header>
 
-      <main class="page-content">
-        <section class="panel hero-panel">
-          <div class="panel-head panel-head-spread">
+      <main class="page-stack">
+        <section class="panel">
+          <header class="panel-bar panel-bar--spread">
             <div>
-              <h2 class="panel-title" data-i18n="heroTitle"></h2>
-              <p class="panel-caption" data-i18n="heroSubtitle"></p>
+              <h2 class="panel-title">&#36164;&#20135;&#24635;&#35272;</h2>
+              <p class="panel-note">
+                &#20215;&#26684;&#12289;&#32929;&#24687;&#29575;&#12289;&#27719;&#29575;&#25442;&#31639;&#19982;&#24180;&#24230;&#32929;&#24687;
+              </p>
             </div>
-            <div class="panel-actions">
-              <button id="exportButton" class="panel-link" type="button" data-i18n="exportData"></button>
-              <button id="importButton" class="panel-link" type="button" data-i18n="importData"></button>
-              <input id="importFileInput" type="file" accept="application/json" hidden>
+            <div class="text-actions">
+              <button id="exportButton" class="text-button" type="button">
+                &#23548;&#20986;
+              </button>
+              <button id="importButton" class="text-button" type="button">
+                &#23548;&#20837;
+              </button>
             </div>
-          </div>
-          <div class="summary-grid" id="summaryGrid"></div>
+          </header>
+          <div id="summaryGrid" class="summary-grid"></div>
         </section>
 
-        <section class="panel chart-panel">
-          <div class="panel-head">
+        <section class="panel">
+          <header class="panel-bar">
             <div>
-              <h2 class="panel-title" data-i18n="chartTitle"></h2>
-              <p class="panel-caption" data-i18n="chartCaption"></p>
+              <h2 class="panel-title">&#25345;&#20179;&#32467;&#26500;</h2>
+              <p class="panel-note">
+                &#20844;&#21496;&#21344;&#27604;&#19982;&#26680;&#24515;&#20179; / &#25171;&#24037;&#20179;&#20998;&#24067;
+              </p>
             </div>
-          </div>
-          <div class="chart-surface">
+          </header>
+          <div class="chart-shell">
             <div class="chart-layout">
               <div class="donut-wrap">
-                <div class="donut-chart" id="companyDonut"></div>
+                <div id="companyDonut" class="company-donut" aria-hidden="true"></div>
               </div>
-              <div class="legend-panel">
-                <div class="legend-list" id="companyLegend"></div>
-                <button id="legendToggle" class="link-button" type="button" hidden></button>
+              <div class="legend-wrap">
+                <div id="companyLegend" class="legend-list"></div>
+                <button
+                  id="legendToggle"
+                  class="text-button legend-toggle"
+                  type="button"
+                  hidden
+                ></button>
               </div>
             </div>
-            <div class="bucket-track" id="bucketTrack"></div>
+            <div id="bucketTrack" class="bucket-track"></div>
           </div>
         </section>
 
-        <section class="panel list-panel">
-          <div class="panel-head list-head">
-            <div class="list-title-block">
-              <h2 class="panel-title" data-i18n="stockListTitle"></h2>
-              <p id="marketTimestamp" class="list-meta"></p>
+        <section class="panel">
+          <header class="panel-bar panel-bar--list">
+            <div class="list-heading">
+              <h2 class="panel-title">&#25345;&#20179;&#21015;&#34920;</h2>
+              <p id="marketTimestamp" class="panel-note"></p>
             </div>
-            <div class="list-tools">
-              <button class="sort-chip" data-sort-field="marketValueCny" type="button"></button>
-              <button class="sort-chip" data-sort-field="dividendYield" type="button"></button>
+            <div class="sort-group">
+              <button class="sort-chip" type="button" data-sort-field="marketValueCny"></button>
+              <button class="sort-chip" type="button" data-sort-field="effectiveYield"></button>
             </div>
-            <div class="head-actions">
-              <button id="refreshButton" class="icon-button" type="button" aria-label="refresh">
+            <div class="icon-actions">
+              <button
+                id="refreshButton"
+                class="circle-button"
+                type="button"
+                aria-label="&#21047;&#26032;&#34892;&#24773;"
+              >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M18.4 8.3A7.5 7.5 0 1 0 19 15.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
-                  <path d="M15.2 5.8h4.8v4.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <path
+                    d="M18.6 8.4A7.6 7.6 0 1 0 19 15.7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  ></path>
+                  <path
+                    d="M15.2 5.8H20v4.8"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  ></path>
                 </svg>
               </button>
-              <button id="addButton" class="icon-button" type="button" aria-label="add">
+              <button
+                id="addButton"
+                class="circle-button"
+                type="button"
+                aria-label="&#26032;&#22686;&#25345;&#20179;"
+              >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 5.2v13.6M5.2 12h13.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+                  <path
+                    d="M12 5.2v13.6M5.2 12h13.6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                  ></path>
                 </svg>
               </button>
             </div>
-          </div>
+          </header>
           <div id="stockList" class="stock-list"></div>
         </section>
       </main>
     </div>
 
     <div id="modalRoot"></div>
-
-    <template id="stockCardTemplate">
-      <article class="stock-card">
-        <div class="stock-head">
-          <div class="stock-title-line">
-            <span class="stock-name"></span>
-            <span class="stock-divider">/</span>
-            <span class="stock-price"></span>
-          </div>
-          <div class="stock-head-right">
-            <span class="holding-badge"></span>
-            <button class="stock-delete" type="button">-</button>
-          </div>
-        </div>
-        <div class="stock-code"></div>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label market-label"></span>
-            <span class="info-value market-value"></span>
-          </div>
-          <button class="info-item info-trigger align-right quantity-trigger" type="button">
-            <span class="info-label quantity-label"></span>
-            <span class="info-value quantity-value"></span>
-          </button>
-          <button class="info-item info-trigger annual-trigger" type="button">
-            <span class="info-label annual-label"></span>
-            <span class="info-value income annual-value"></span>
-          </button>
-          <button class="info-item info-trigger align-right yield-trigger" type="button">
-            <span class="info-label yield-label"></span>
-            <span class="info-value income yield-value"></span>
-          </button>
-        </div>
-      </article>
-    </template>
+    <input id="importFileInput" type="file" accept="application/json" hidden>
 
     <script src="./app.js"></script>
   </body>

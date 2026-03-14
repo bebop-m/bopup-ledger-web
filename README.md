@@ -1,6 +1,6 @@
 # 波普账本网页端
 
-这版网页已经收成纯静态方案：
+这版网页已经切换成纯静态方案：
 
 - 前端页面只读取 `data/market.json`
 - `GitHub Actions` 每 5 分钟自动更新一次价格和汇率
@@ -16,9 +16,12 @@
 - 新增、删除
 - 数量弹窗编辑
 - 税率弹窗编辑
+- 股息率手动覆盖
+- 负债扣减总金额
+- 导出 / 导入本地备份
 - 按持仓市值 / 股息率排序
 - 隐私隐藏
-- AKShare 定时刷新价格
+- Yahoo Finance 定时刷新价格
 - Frankfurter 定时刷新汇率
 - 港股 TTM 股息率自动更新
 - A 股 TTM 股息率自动计算
@@ -36,13 +39,11 @@
 ```text
 GitHub Actions
   -> 运行 Python 脚本
-  -> 从 AKShare 拉股票价格
+  -> 从 Yahoo Finance 拉股票价格
+  -> 从 Yahoo Finance 拉股息历史并计算 TTM 股息率
   -> 从 Frankfurter 拉汇率
-  -> 港股直接读取 TTM 股息指标
-  -> A 股按最近 12 个月分红自行计算 TTM 股息率
   -> 更新 data/market.json
   -> 提交回仓库
-
 静态网页
   -> 刷新时读取 data/market.json
 ```
@@ -54,7 +55,6 @@ powershell -ExecutionPolicy Bypass -File "C:\GPT CODEX\web-app\serve.ps1"
 ```
 
 打开：
-
 ```text
 http://127.0.0.1:4173/
 ```
@@ -62,7 +62,6 @@ http://127.0.0.1:4173/
 ## GitHub 自动更新
 
 工作流会：
-
 - 每 5 分钟运行一次
 - 更新 `data/market.json`
 - 自动提交最新行情文件
@@ -74,19 +73,19 @@ http://127.0.0.1:4173/
 ### 观察名单限制
 
 自动更新只覆盖 `data/watchlist.json` 里的股票。
-
 也就是说：
-
 - 你在网页里新增了一只新股票
 - 想让它也自动刷新价格
 - 还需要把它补进 `data/watchlist.json`
 
-### 港股时效
+### 数据来源
 
-AKShare 文档注明港股行情通常是 15 分钟延时。
+- 港股 / A股 / 美股价格：Yahoo Finance
+- 汇率：Frankfurter
+- 港股 / A股股息率：根据 Yahoo 股息历史计算最近 12 个月 TTM
 
 ### 股息率
 
-- 港股：直接使用 AKShare 的 TTM 字段
-- A 股：根据最近 12 个月现金分红自行计算
-- 美股：当前不做自动股息率
+- 港股：自动计算 TTM 股息率，也可手动覆盖
+- A股：自动计算 TTM 股息率，也可手动覆盖
+- 美股：当前默认不依赖自动股息率，必要时可手动覆盖
