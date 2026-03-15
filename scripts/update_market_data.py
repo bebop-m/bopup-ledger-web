@@ -12,6 +12,7 @@ import requests
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / 'data'
 WATCHLIST_PATH = DATA_DIR / 'watchlist.json'
+PORTFOLIO_SNAPSHOT_PATH = DATA_DIR / 'portfolio_snapshot.json'
 OUTPUT_PATH = DATA_DIR / 'market.json'
 CONFIG_PATH = ROOT / 'config.json'
 
@@ -70,6 +71,57 @@ def normalize_symbol(raw_symbol):
 def load_watchlist():
     payload = json.loads(WATCHLIST_PATH.read_text(encoding='utf-8-sig'))
     return [normalize_symbol(symbol) for symbol in payload.get('symbols', []) if normalize_symbol(symbol)]
+
+
+def load_portfolio_snapshot_symbols():
+    if not PORTFOLIO_SNAPSHOT_PATH.exists():
+        return []
+
+    try:
+        payload = json.loads(PORTFOLIO_SNAPSHOT_PATH.read_text(encoding='utf-8-sig'))
+    except Exception as error:
+        print(f'portfolio snapshot load skipped: {error}')
+        return []
+
+    if not isinstance(payload, dict):
+        return []
+
+    raw_holdings = payload.get('holdings')
+    if not isinstance(raw_holdings, list):
+        raw_holdings = payload.get('positions')
+
+    if not isinstance(raw_holdings, list):
+        return []
+
+    symbols = []
+    for item in raw_holdings:
+        if not isinstance(item, dict):
+            continue
+
+        symbol = normalize_symbol(item.get('symbol'))
+        if not symbol:
+            continue
+
+        has_size = 'quantity' in item or 'shares' in item
+        position_size = safe_float(item.get('quantity'), safe_float(item.get('shares'), 0.0))
+        if has_size and position_size <= 0:
+            continue
+
+        if symbol not in symbols:
+            symbols.append(symbol)
+
+    return symbols
+
+
+def load_symbol_universe():
+    snapshot_symbols = load_portfolio_snapshot_symbols()
+    if snapshot_symbols:
+        print(f'loaded {len(snapshot_symbols)} symbols from {PORTFOLIO_SNAPSHOT_PATH.name}')
+        return snapshot_symbols
+
+    watchlist_symbols = load_watchlist()
+    print(f'loaded {len(watchlist_symbols)} symbols from {WATCHLIST_PATH.name}')
+    return watchlist_symbols
 
 
 def load_previous_snapshot():
@@ -656,7 +708,7 @@ def seed_quotes_from_previous(previous_snapshot, watchlist, stale_days):
 
 def main():
     config = load_config()
-    watchlist = load_watchlist()
+    watchlist = load_symbol_universe()
     previous_snapshot = load_previous_snapshot()
     previous_quotes = previous_snapshot.get('quotes') or {}
     eodhd_api_key = str(os.getenv('EODHD_API_KEY', '') or '').strip()

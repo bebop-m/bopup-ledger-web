@@ -2,6 +2,7 @@
 const MARKET_ENDPOINT = './data/market.json';
 const OVERRIDE_ENDPOINT = './data/override.json';
 const CONFIG_ENDPOINT = './config.json';
+const PORTFOLIO_SNAPSHOT_FILENAME = 'portfolio_snapshot.json';
 const GITHUB_MARKET_CONTENTS_API = 'https://api.github.com/repos/bebop-m/bopup-ledger-web/contents/data/market.json';
 const TENCENT_REALTIME_ENDPOINT = 'https://qt.gtimg.cn/q=';
 const TENCENT_BATCH_SIZE = 60;
@@ -351,7 +352,7 @@ function formatDateLabel(value) {
 function getDividendSourceLabel(source) {
   const key = String(source || '').trim().toLowerCase();
   if (key === 'manual') {
-    return 'Manual';
+    return '手动';
   }
   if (key === 'eodhd') {
     return 'EODHD';
@@ -378,15 +379,15 @@ function getDividendStatusLabel(status) {
 
 function buildDividendTooltipLines(item) {
   const lines = [
-    `${LABELS.dividendSource}锛?{getDividendSourceLabel(item.dividendSource)}`
+    `${LABELS.dividendSource}：${getDividendSourceLabel(item.dividendSource)}`
   ];
   const updatedAt = formatDateLabel(item.dividendUpdatedAt);
   if (updatedAt) {
-    lines.push(`${LABELS.dividendUpdatedAt}锛?{updatedAt}`);
+    lines.push(`${LABELS.dividendUpdatedAt}：${updatedAt}`);
   }
   const lastExDate = formatDateLabel(item.lastExDate);
   if (lastExDate) {
-    lines.push(`${LABELS.lastExDate}锛?{lastExDate}`);
+    lines.push(`${LABELS.lastExDate}：${lastExDate}`);
   }
   return lines;
 }
@@ -579,9 +580,13 @@ function sanitizeHolding(item, index, quoteMap = {}) {
   return {
     localId: Math.max(1, Math.floor(safeNumber(item && item.localId, index + 1))),
     symbol,
-    quantity: Math.max(0, safeNumber(item && item.quantity, 0)),
+    quantity: Math.max(0, safeNumber(item && item.quantity != null ? item.quantity : item && item.shares, 0)),
     bucket: item && item.bucket === 'income' ? 'income' : 'core',
-    taxRateOverride: item && item.taxRateOverride != null ? String(item.taxRateOverride) : '',
+    taxRateOverride: item && item.taxRateOverride != null
+      ? String(item.taxRateOverride)
+      : item && item.taxRate != null
+        ? String(item.taxRate)
+        : '',
     dividendPerShareTtmOverride: nextDividendPerShareOverride,
     dividendPerShareTtmOverrideTouched: nextDividendPerShareOverride !== ''
   };
@@ -692,6 +697,54 @@ function getPersistedSnapshot() {
     legendExpanded: state.legendExpanded,
     liabilityCny: state.liabilityCny,
     lastUpdatedAt: state.lastUpdatedAt
+  };
+}
+
+function buildPortfolioSnapshotHolding(holding) {
+  const quantity = Math.max(0, safeNumber(
+    holding && holding.quantity != null ? holding.quantity : holding && holding.shares,
+    0
+  ));
+  const dividendPerShareTtmOverride = sanitizePerShareOverrideInput(
+    holding && holding.dividendPerShareTtmOverride
+  );
+
+  return {
+    localId: Math.max(1, Math.floor(safeNumber(holding && holding.localId, 1))),
+    symbol: normalizeSymbol(holding && holding.symbol),
+    quantity,
+    shares: quantity,
+    accountType: holding && typeof holding.accountType === 'string' && holding.accountType.trim()
+      ? holding.accountType.trim()
+      : 'default',
+    bucket: holding && holding.bucket === 'income' ? 'income' : 'core',
+    taxRateOverride: holding && holding.taxRateOverride != null ? String(holding.taxRateOverride) : '',
+    dividendPerShareTtmOverride,
+    dividendPerShareTtmOverrideTouched: holding && holding.dividendPerShareTtmOverrideTouched === true && dividendPerShareTtmOverride !== ''
+  };
+}
+
+function buildPortfolioSnapshot() {
+  const persisted = getPersistedSnapshot();
+  const holdings = Array.isArray(persisted.holdings)
+    ? persisted.holdings.map(buildPortfolioSnapshotHolding).filter((item) => item.symbol)
+    : [];
+
+  return {
+    type: 'portfolio-snapshot',
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    holdings,
+    nextId: Math.max(
+      holdings.reduce((maxValue, item) => Math.max(maxValue, item.localId), 0) + 1,
+      Math.floor(safeNumber(persisted.nextId, 1))
+    ),
+    showAmounts: persisted.showAmounts !== false,
+    sortField: persisted.sortField === 'effectiveYield' ? 'effectiveYield' : 'marketValueCny',
+    sortDirection: persisted.sortDirection === 'asc' ? 'asc' : 'desc',
+    legendExpanded: Boolean(persisted.legendExpanded),
+    liabilityCny: Math.max(0, safeNumber(persisted.liabilityCny, 0)),
+    lastUpdatedAt: typeof persisted.lastUpdatedAt === 'string' ? persisted.lastUpdatedAt : ''
   };
 }
 
@@ -1136,20 +1189,14 @@ function handleModalSave() {
   renderApp();
 }
 
-function exportBackup() {
+function exportPortfolioSnapshot() {
   try {
-    const payload = {
-      type: 'bopup-ledger-backup',
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      state: getPersistedSnapshot()
-    };
+    const payload = buildPortfolioSnapshot();
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
     const link = document.createElement('a');
     link.href = url;
-    link.download = `bopup-ledger-backup-${stamp}.json`;
+    link.download = PORTFOLIO_SNAPSHOT_FILENAME;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -1162,10 +1209,15 @@ function exportBackup() {
 
 function importSnapshot(payload) {
   const source = payload && payload.state ? payload.state : payload;
-  if (!source || !Array.isArray(source.holdings)) {
+  const normalizedSource = source && Array.isArray(source.holdings)
+    ? source
+    : source && Array.isArray(source.positions)
+      ? { ...source, holdings: source.positions }
+      : source;
+  if (!normalizedSource || !Array.isArray(normalizedSource.holdings)) {
     throw new Error('invalid backup payload');
   }
-  applySnapshot(source);
+  applySnapshot(normalizedSource);
   saveState();
   renderApp();
 }
@@ -1526,7 +1578,7 @@ refs.privacyButton.addEventListener('click', () => {
   renderApp();
 });
 
-refs.exportButton.addEventListener('click', exportBackup);
+refs.exportButton.addEventListener('click', exportPortfolioSnapshot);
 refs.importButton.addEventListener('click', () => refs.importFileInput.click());
 refs.importFileInput.addEventListener('change', handleImportFile);
 
