@@ -226,7 +226,7 @@ function ensureSortToggleButton() {
 
 function configureUiChrome() {
   if (refs.appKicker) {
-    refs.appKicker.textContent = 'BEBOP LEDGER';
+    refs.appKicker.textContent = 'BEBOP';
   }
 
   if (UI_FLAGS.summaryActionCluster && refs.summaryActions) {
@@ -244,6 +244,7 @@ function configureUiChrome() {
       <path d="M5.8 18h12.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
     </svg>
   `;
+  refs.privacyButton.classList.add('summary-action-button');
 
   if (UI_FLAGS.hideSnapshotImportEntry) {
     refs.importButton.hidden = true;
@@ -1184,6 +1185,19 @@ function renderSortChips() {
     sortToggleButton.hidden = !UI_FLAGS.subtleSortControls;
     sortToggleButton.classList.toggle('is-active', state.sortMenuOpen);
     sortToggleButton.title = `${UI_TEXT.sort} \u00b7 ${state.sortField === 'effectiveYield' ? LABELS.sortDividendYield : LABELS.sortMarketValue}`;
+    sortToggleButton.innerHTML = state.sortDirection === 'asc'
+      ? `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 18V6.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+          <path d="M8.8 9.7L12 6.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      `
+      : `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 6v11.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+          <path d="M8.8 14.3L12 17.5l3.2-3.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      `;
   }
   refs.sortChips.forEach((chip) => {
     const field = chip.dataset.sortField;
@@ -1794,6 +1808,13 @@ function renderApp() {
   const summary = computeHoldings();
   const companySegments = getCompanySegments(summary.holdings);
   const bucketSegments = getBucketSegments(summary.holdings);
+  const chartShell = refs.chartLayout && refs.chartLayout.parentElement;
+
+  if (chartShell && UI_FLAGS.bucketSummaryV2) {
+    chartShell.insertBefore(refs.bucketTrack, refs.chartLayout);
+  } else if (chartShell && refs.bucketTrack !== chartShell.lastElementChild) {
+    chartShell.appendChild(refs.bucketTrack);
+  }
 
   document.body.classList.toggle('ui-refined-accent', UI_FLAGS.refinedAccentColors);
   renderSummary(summary);
@@ -1869,7 +1890,7 @@ document.addEventListener('click', (event) => {
   if (!UI_FLAGS.subtleSortControls || !state.sortMenuOpen) {
     return;
   }
-  if (event.target.closest('.sort-group')) {
+  if (event.target.closest('.sort-group') || event.target.closest('.sort-toggle-button')) {
     return;
   }
   state.sortMenuOpen = false;

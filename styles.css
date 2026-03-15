@@ -197,7 +197,16 @@ svg {
 }
 
 .summary-action-button {
-  color: #768397;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  flex: 0 0 auto;
+  padding: 2px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #8b97a7;
 }
 
 .circle-button {
@@ -411,7 +420,8 @@ svg {
   display: block;
   overflow: visible;
   min-height: 0;
-  margin-top: 18px;
+  margin-top: 0;
+  margin-bottom: 14px;
   border-radius: 0;
   background: none;
   box-shadow: none;
@@ -434,7 +444,7 @@ svg {
 
 .bucket-summary-v2 {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .bucket-chip-row {
@@ -445,9 +455,9 @@ svg {
 
 .bucket-chip {
   display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 18px;
+  gap: 2px;
+  padding: 9px 12px;
+  border-radius: 15px;
   background: linear-gradient(180deg, #fbfcff 0%, #f5f8fb 100%);
   box-shadow: inset 0 0 0 1px var(--line);
   text-align: left;
@@ -460,7 +470,7 @@ svg {
 
 .bucket-chip-value {
   color: var(--text);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -483,10 +493,10 @@ svg {
 
 .bucket-detail-card {
   display: grid;
-  gap: 10px;
-  padding: 14px;
+  gap: 8px;
+  padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 16px;
   background: linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
 }
 
@@ -936,6 +946,10 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
     justify-content: flex-end;
   }
 
+  .summary-action-button {
+    padding: 1px;
+  }
+
   .summary-value {
     margin-top: 6px;
     font-size: clamp(18px, 5.2vw, 22px);
@@ -1033,7 +1047,8 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   }
 
   .bucket-track.bucket-track--summary-v2 {
-    margin-top: 14px;
+    margin-top: 0;
+    margin-bottom: 12px;
   }
 
   .bucket-segment {
@@ -1045,12 +1060,12 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   }
 
   .bucket-chip {
-    padding: 11px 12px;
-    border-radius: 16px;
+    padding: 8px 10px;
+    border-radius: 14px;
   }
 
   .bucket-chip-value {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .bucket-detail-card {
