@@ -45,6 +45,10 @@ body {
   font-family: var(--font);
 }
 
+body.ui-refined-accent {
+  --accent: #de8846;
+}
+
 body.modal-open {
   overflow: hidden;
 }
@@ -227,6 +231,16 @@ svg {
   margin-top: 16px;
 }
 
+.summary-grid.summary-grid--compact-fx {
+  display: block;
+}
+
+.summary-grid-main {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .summary-card {
   padding: 16px;
   border: 1px solid var(--line);
@@ -251,6 +265,25 @@ svg {
   color: var(--accent);
 }
 
+.summary-fx-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.summary-fx-item {
+  white-space: nowrap;
+}
+
+.summary-fx-divider {
+  color: #ccd4df;
+}
+
 .ghost-minus {
   padding: 0;
   color: #a9b1bc;
@@ -271,6 +304,10 @@ svg {
   grid-template-columns: 132px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
+}
+
+.chart-layout.is-legend-only {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .donut-wrap {
@@ -356,6 +393,16 @@ svg {
   box-shadow: inset 0 0 0 1px var(--line);
 }
 
+.bucket-track.bucket-track--summary-v2 {
+  display: block;
+  overflow: visible;
+  min-height: 0;
+  margin-top: 18px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
 .bucket-segment {
   display: flex;
   align-items: center;
@@ -371,6 +418,87 @@ svg {
   white-space: nowrap;
 }
 
+.bucket-summary-v2 {
+  display: grid;
+  gap: 12px;
+}
+
+.bucket-chip-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bucket-chip {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fbfcff 0%, #f5f8fb 100%);
+  box-shadow: inset 0 0 0 1px var(--line);
+  text-align: left;
+}
+
+.bucket-chip-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bucket-chip-value {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bucket-chip.is-core.is-active {
+  background: linear-gradient(180deg, rgba(21, 40, 73, 0.08) 0%, rgba(21, 40, 73, 0.03) 100%);
+  box-shadow: inset 0 0 0 1px rgba(21, 40, 73, 0.12);
+}
+
+.bucket-chip.is-income.is-active {
+  background: linear-gradient(180deg, rgba(242, 140, 40, 0.12) 0%, rgba(242, 140, 40, 0.04) 100%);
+  box-shadow: inset 0 0 0 1px rgba(242, 140, 40, 0.16);
+}
+
+.bucket-overall-yield {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 2px;
+}
+
+.bucket-detail-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
+}
+
+.bucket-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bucket-detail-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bucket-detail-value {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bucket-detail-value.is-income {
+  color: var(--accent);
+}
+
 .list-heading {
   margin-right: auto;
   min-width: 0;
@@ -378,6 +506,10 @@ svg {
 
 .sort-group {
   flex-wrap: wrap;
+}
+
+.sort-group.sort-group--subtle {
+  gap: 6px;
 }
 
 .sort-chip {
@@ -399,6 +531,26 @@ svg {
 .sort-chip.is-active {
   background: var(--brand-soft);
   color: var(--brand);
+}
+
+.sort-group.sort-group--subtle .sort-chip {
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(21, 40, 73, 0.08);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sort-group.sort-group--subtle .sort-chip.is-active {
+  background: rgba(21, 40, 73, 0.06);
+  color: var(--brand);
+}
+
+.sort-group.sort-group--subtle .sort-chip.is-subtle-primary {
+  padding-inline: 12px;
 }
 
 .stock-list {
@@ -440,6 +592,18 @@ svg {
 
 .holding-price {
   color: var(--accent);
+}
+
+body.ui-refined-accent .holding-price {
+  color: #607188;
+}
+
+body.ui-refined-accent .holding-divider {
+  color: #d2d9e2;
+}
+
+body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value {
+  color: #6a788e;
 }
 
 .holding-code {
@@ -759,9 +923,20 @@ svg {
     margin-top: 12px;
   }
 
+  .summary-grid-main {
+    gap: 8px;
+  }
+
   .summary-card {
     padding: 13px;
     border-radius: 16px;
+  }
+
+  .summary-fx-strip {
+    gap: 8px;
+    margin-top: 10px;
+    padding: 0 2px;
+    font-size: 11px;
   }
 
   .chart-shell {
@@ -776,6 +951,10 @@ svg {
     gap: 8px;
   }
 
+  .sort-group.sort-group--subtle {
+    gap: 6px;
+  }
+
   .sort-chip {
     flex: 1 1 0;
     min-width: 0;
@@ -783,6 +962,14 @@ svg {
     padding: 0 12px;
     border-radius: 16px;
     font-size: 14px;
+  }
+
+  .sort-group.sort-group--subtle .sort-chip {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 13px;
+    font-size: 11px;
   }
 
   .chart-layout {
@@ -815,8 +1002,31 @@ svg {
     margin-top: 14px;
   }
 
+  .bucket-track.bucket-track--summary-v2 {
+    margin-top: 14px;
+  }
+
   .bucket-segment {
     padding: 0 10px;
+  }
+
+  .bucket-chip-row {
+    gap: 8px;
+  }
+
+  .bucket-chip {
+    padding: 11px 12px;
+    border-radius: 16px;
+  }
+
+  .bucket-chip-value {
+    font-size: 17px;
+  }
+
+  .bucket-detail-card {
+    gap: 8px;
+    padding: 12px;
+    border-radius: 16px;
   }
 
   .panel-bar--list {
@@ -967,6 +1177,11 @@ svg {
   }
 
   .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-grid-main,
+  .bucket-chip-row {
     grid-template-columns: 1fr;
   }
 }

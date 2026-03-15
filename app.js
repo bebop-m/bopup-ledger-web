@@ -14,6 +14,21 @@ const VALID_DIVIDEND_SOURCES = new Set(['yahoo', 'eodhd', 'manual', 'cache']);
 const VALID_DIVIDEND_STATUSES = new Set(['manual', 'fresh', 'stale', 'missing']);
 let currentDividendStaleDays = DEFAULT_STALE_DAYS;
 
+// Each UI refinement block stays behind its own flag for quick rollback.
+const UI_FLAGS = {
+  titleDotSeparator: true,
+  compactFxSummary: true,
+  hideAllocationPie: true,
+  bucketSummaryV2: true,
+  subtleSortControls: true,
+  refinedAccentColors: true
+};
+
+const UI_TEXT = {
+  sort: '\u6392\u5e8f',
+  overallAverageNetYield: '\u6574\u4f53\u5e73\u5747\u7a0e\u540e\u80a1\u606f\u7387'
+};
+
 const DEFAULT_RATES = {
   CNY: 1,
   USD: 7.22,
@@ -146,7 +161,9 @@ const state = {
   lastUpdatedAt: '',
   modal: null,
   modalPayload: null,
-  syncing: false
+  syncing: false,
+  activeBucketKey: null,
+  sortMenuOpen: false
 };
 
 const refs = {
@@ -159,11 +176,14 @@ const refs = {
   companyLegend: document.getElementById('companyLegend'),
   legendToggle: document.getElementById('legendToggle'),
   bucketTrack: document.getElementById('bucketTrack'),
+  chartLayout: document.querySelector('.chart-layout'),
+  donutWrap: document.querySelector('.donut-wrap'),
   marketTimestamp: document.getElementById('marketTimestamp'),
   refreshButton: document.getElementById('refreshButton'),
   addButton: document.getElementById('addButton'),
   stockList: document.getElementById('stockList'),
   modalRoot: document.getElementById('modalRoot'),
+  sortGroup: document.querySelector('.sort-group'),
   sortChips: Array.from(document.querySelectorAll('.sort-chip'))
 };
 
@@ -875,12 +895,39 @@ function getBucketSegments(holdings) {
   ].filter((item) => item.value > 0);
 }
 
-function renderSummary(summary) {
-  const totalLabel = state.showAmounts ? formatMoney(summary.netMarketValueCny, 'CNY') : MASK_AMOUNT;
-  const dividendLabel = state.showAmounts ? formatMoney(summary.totalDividendCny, 'CNY') : MASK_AMOUNT;
-  const liabilityLabel = state.showAmounts ? formatMoney(state.liabilityCny, 'CNY') : MASK_AMOUNT;
+function formatDisplayMoney(value, currency = 'CNY') {
+  return state.showAmounts ? formatMoney(value, currency) : MASK_AMOUNT;
+}
 
-  refs.summaryGrid.innerHTML = `
+function getHoldingTitleDivider() {
+  return UI_FLAGS.titleDotSeparator ? '\u00b7' : '/';
+}
+
+function getBucketSummaryItems(holdings) {
+  const groups = {
+    core: { key: 'core', label: LABELS.core, color: BUCKET_COLORS.core, marketValueCny: 0, totalDividendCny: 0 },
+    income: { key: 'income', label: LABELS.income, color: BUCKET_COLORS.income, marketValueCny: 0, totalDividendCny: 0 }
+  };
+
+  holdings.forEach((item) => {
+    const bucketKey = item.bucket === 'income' ? 'income' : 'core';
+    groups[bucketKey].marketValueCny += safeNumber(item.marketValueCny, 0);
+    groups[bucketKey].totalDividendCny += safeNumber(item.netAnnualDividendCny, 0);
+  });
+
+  return Object.values(groups)
+    .map((item) => ({
+      ...item,
+      averageYield: item.marketValueCny > 0 ? item.totalDividendCny / item.marketValueCny : 0
+    }))
+    .filter((item) => item.marketValueCny > 0);
+}
+
+function renderSummary(summary) {
+  const totalLabel = formatDisplayMoney(summary.netMarketValueCny, 'CNY');
+  const dividendLabel = formatDisplayMoney(summary.totalDividendCny, 'CNY');
+  const liabilityLabel = formatDisplayMoney(state.liabilityCny, 'CNY');
+  const mainCards = `
     <article class="summary-card">
       <div class="summary-top">
         <span class="summary-label">${LABELS.totalMarketValue}</span>
@@ -893,18 +940,41 @@ function renderSummary(summary) {
       <div class="summary-label">${LABELS.totalDividend}</div>
       <div class="summary-value is-income">${dividendLabel}</div>
     </article>
-    <article class="summary-card">
-      <div class="summary-label">${LABELS.usdRate}</div>
-      <p class="summary-note">1 USD = ${safeNumber(state.rates.USD, 0).toFixed(2)} CNY</p>
-    </article>
-    <article class="summary-card">
-      <div class="summary-label">${LABELS.hkdRate}</div>
-      <p class="summary-note">1 HKD = ${safeNumber(state.rates.HKD, 0).toFixed(2)} CNY</p>
-    </article>
   `;
+
+  refs.summaryGrid.classList.toggle('summary-grid--compact-fx', UI_FLAGS.compactFxSummary);
+  refs.summaryGrid.innerHTML = UI_FLAGS.compactFxSummary
+    ? `
+      <div class="summary-grid-main">
+        ${mainCards}
+      </div>
+      <div class="summary-fx-strip" aria-label="${LABELS.usdRate} / ${LABELS.hkdRate}">
+        <span class="summary-fx-item">USD/CNY ${safeNumber(state.rates.USD, 0).toFixed(2)}</span>
+        <span class="summary-fx-divider">\u00b7</span>
+        <span class="summary-fx-item">HKD/CNY ${safeNumber(state.rates.HKD, 0).toFixed(4)}</span>
+      </div>
+    `
+    : `
+      ${mainCards}
+      <article class="summary-card">
+        <div class="summary-label">${LABELS.usdRate}</div>
+        <p class="summary-note">1 USD = ${safeNumber(state.rates.USD, 0).toFixed(2)} CNY</p>
+      </article>
+      <article class="summary-card">
+        <div class="summary-label">${LABELS.hkdRate}</div>
+        <p class="summary-note">1 HKD = ${safeNumber(state.rates.HKD, 0).toFixed(4)} CNY</p>
+      </article>
+    `;
 }
 
 function renderDonut(segments) {
+  if (refs.donutWrap && refs.chartLayout) {
+    refs.donutWrap.hidden = UI_FLAGS.hideAllocationPie;
+    refs.chartLayout.classList.toggle('is-legend-only', UI_FLAGS.hideAllocationPie);
+  }
+  if (UI_FLAGS.hideAllocationPie) {
+    return;
+  }
   const total = segments.reduce((sum, item) => sum + item.value, 0);
   if (!segments.length || total <= 0) {
     refs.companyDonut.style.background = 'conic-gradient(#dfe5ee 0deg, #dfe5ee 360deg)';
@@ -944,7 +1014,57 @@ function renderLegend(segments) {
   }
 }
 
-function renderBuckets(segments) {
+function renderBuckets(segments, holdings, summary) {
+  if (UI_FLAGS.bucketSummaryV2) {
+    refs.bucketTrack.classList.add('bucket-track--summary-v2');
+    const totalMarketValue = segments.reduce((sum, item) => sum + safeNumber(item.value, 0), 0);
+    const bucketItems = getBucketSummaryItems(holdings);
+    if (state.activeBucketKey && !bucketItems.some((item) => item.key === state.activeBucketKey)) {
+      state.activeBucketKey = null;
+    }
+    const activeItem = bucketItems.find((item) => item.key === state.activeBucketKey) || null;
+    const overallNetYield = totalMarketValue > 0
+      ? summary.totalDividendCny / totalMarketValue
+      : 0;
+
+    refs.bucketTrack.innerHTML = `
+      <div class="bucket-summary-v2">
+        <div class="bucket-chip-row">
+          ${bucketItems.map((item) => `
+            <button
+              class="bucket-chip is-${item.key}${state.activeBucketKey === item.key ? ' is-active' : ''}"
+              type="button"
+              data-bucket-toggle="${item.key}"
+              aria-expanded="${state.activeBucketKey === item.key ? 'true' : 'false'}"
+            >
+              <span class="bucket-chip-label">${item.label}</span>
+              <span class="bucket-chip-value">${(item.marketValueCny / (totalMarketValue || 1) * 100).toFixed(1)}%</span>
+            </button>
+          `).join('')}
+        </div>
+        <div class="bucket-overall-yield">${UI_TEXT.overallAverageNetYield} ${formatPercent(overallNetYield)}</div>
+        ${activeItem ? `
+          <div class="bucket-detail-card">
+            <div class="bucket-detail-row">
+              <span class="bucket-detail-label">${LABELS.marketValue.replace('：', '')}</span>
+              <span class="bucket-detail-value">${formatDisplayMoney(activeItem.marketValueCny, 'CNY')}</span>
+            </div>
+            <div class="bucket-detail-row">
+              <span class="bucket-detail-label">${LABELS.annualDividend.replace('：', '')}</span>
+              <span class="bucket-detail-value is-income">${formatDisplayMoney(activeItem.totalDividendCny, 'CNY')}</span>
+            </div>
+            <div class="bucket-detail-row">
+              <span class="bucket-detail-label">${LABELS.dividendYield.replace('：', '')}</span>
+              <span class="bucket-detail-value">${formatPercent(activeItem.averageYield)}</span>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+    return;
+  }
+
+  refs.bucketTrack.classList.remove('bucket-track--summary-v2');
   if (!segments.length) {
     refs.bucketTrack.innerHTML = '';
     return;
@@ -957,13 +1077,21 @@ function renderBuckets(segments) {
 }
 
 function renderSortChips() {
+  if (refs.sortGroup) {
+    refs.sortGroup.classList.toggle('sort-group--subtle', UI_FLAGS.subtleSortControls);
+    refs.sortGroup.dataset.open = state.sortMenuOpen ? 'true' : 'false';
+  }
   refs.sortChips.forEach((chip) => {
     const field = chip.dataset.sortField;
     const isActive = field === state.sortField;
     const label = field === 'effectiveYield' ? LABELS.sortDividendYield : LABELS.sortMarketValue;
     const arrow = isActive ? (state.sortDirection === 'desc' ? '\u2193' : '\u2191') : '';
     chip.classList.toggle('is-active', isActive);
-    chip.textContent = arrow ? `${label} ${arrow}` : label;
+    chip.hidden = UI_FLAGS.subtleSortControls ? (!state.sortMenuOpen && !isActive) : false;
+    chip.classList.toggle('is-subtle-primary', UI_FLAGS.subtleSortControls && isActive && !state.sortMenuOpen);
+    chip.textContent = UI_FLAGS.subtleSortControls && isActive && !state.sortMenuOpen
+      ? `${UI_TEXT.sort} \u00b7 ${label} ${arrow || '\u2193'}`
+      : (arrow ? `${label} ${arrow}` : label);
   });
 }
 
@@ -997,7 +1125,7 @@ function renderHoldings(holdings) {
           <div>
             <div class="holding-name-row">
               <h3 class="holding-name">${escapeHtml(item.name)}</h3>
-              <span class="holding-divider">/</span>
+              <span class="holding-divider">${getHoldingTitleDivider()}</span>
               <span class="holding-price">${priceText}</span>
             </div>
             <div class="holding-code-row">
@@ -1565,10 +1693,11 @@ function renderApp() {
   const companySegments = getCompanySegments(summary.holdings);
   const bucketSegments = getBucketSegments(summary.holdings);
 
+  document.body.classList.toggle('ui-refined-accent', UI_FLAGS.refinedAccentColors);
   renderSummary(summary);
   renderDonut(companySegments);
   renderLegend(companySegments);
-  renderBuckets(bucketSegments);
+  renderBuckets(bucketSegments, summary.holdings, summary);
   renderSortChips();
   renderTimestamp();
   renderPrivacyButton();
@@ -1605,6 +1734,24 @@ refs.sortChips.forEach((chip) => {
     if (!nextField) {
       return;
     }
+    if (UI_FLAGS.subtleSortControls) {
+      const isActive = state.sortField === nextField;
+      if (!state.sortMenuOpen && isActive) {
+        state.sortMenuOpen = true;
+        renderApp();
+        return;
+      }
+      if (isActive) {
+        state.sortDirection = state.sortDirection === 'desc' ? 'asc' : 'desc';
+      } else {
+        state.sortField = nextField;
+        state.sortDirection = 'desc';
+      }
+      state.sortMenuOpen = false;
+      saveState();
+      renderApp();
+      return;
+    }
     if (state.sortField === nextField) {
       state.sortDirection = state.sortDirection === 'desc' ? 'asc' : 'desc';
     } else {
@@ -1614,6 +1761,30 @@ refs.sortChips.forEach((chip) => {
     saveState();
     renderApp();
   });
+});
+
+document.addEventListener('click', (event) => {
+  if (!UI_FLAGS.subtleSortControls || !state.sortMenuOpen) {
+    return;
+  }
+  if (event.target.closest('.sort-group')) {
+    return;
+  }
+  state.sortMenuOpen = false;
+  renderSortChips();
+});
+
+refs.bucketTrack.addEventListener('click', (event) => {
+  if (!UI_FLAGS.bucketSummaryV2) {
+    return;
+  }
+  const button = event.target.closest('[data-bucket-toggle]');
+  if (!button) {
+    return;
+  }
+  const nextKey = button.dataset.bucketToggle;
+  state.activeBucketKey = state.activeBucketKey === nextKey ? null : nextKey;
+  renderApp();
 });
 
 refs.summaryGrid.addEventListener('click', (event) => {
