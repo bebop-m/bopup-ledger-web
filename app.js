@@ -515,7 +515,7 @@ function updateDividendTooltipSide(button) {
   const rightSpace = viewportWidth - rect.right;
   const leftSpace = rect.left;
   if (button.classList.contains('dividend-status-button--value')) {
-    button.dataset.tooltipSide = leftSpace >= fallbackWidth + 16 ? 'left' : 'right';
+    button.dataset.tooltipSide = 'left';
     return;
   }
   const side = rightSpace >= fallbackWidth + 16 || rightSpace >= leftSpace ? 'right' : 'left';

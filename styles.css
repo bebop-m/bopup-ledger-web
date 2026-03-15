@@ -888,6 +888,11 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   transform: translateY(-50%);
 }
 
+.dividend-status-button--value .dividend-status-tooltip {
+  left: auto;
+  right: calc(100% + 8px);
+}
+
 .dividend-status-button[data-tooltip-side="left"] .dividend-status-tooltip {
   left: auto;
   right: calc(100% + 8px);
@@ -1424,8 +1429,11 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 
   .metric-button.metric-right .metric-row,
   .metric-static--yield .metric-row {
-    justify-content: flex-end;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: 4.3em minmax(4.8em, auto);
+    align-items: baseline;
+    justify-content: end;
+    column-gap: 7px;
   }
 
   .metric-label {
@@ -1437,8 +1445,19 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   .metric-button.metric-right .metric-label,
   .metric-static--yield .metric-label,
   .metric-static--yield .metric-label-button {
-    flex: 0 0 4.2em;
-    min-width: 4.2em;
+    flex: none;
+    width: 4.3em;
+    min-width: 4.3em;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .metric-button.metric-right .metric-value,
+  .metric-static--yield .dividend-status-button--value {
+    flex: none;
+    min-width: 4.8em;
+    justify-self: end;
+    text-align: right;
   }
 
   .metric-value {
