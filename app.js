@@ -1259,20 +1259,18 @@ function renderHoldings(holdings) {
     const tooltipLines = buildDividendTooltipLines(item);
     const tooltipHtml = tooltipLines.map((line) => `<span>${escapeHtml(line)}</span>`).join('');
     const statusLabel = getDividendStatusLabel(statusKey);
-    const statusButtonHtml = statusKey === 'fresh'
-      ? ''
-      : `
-        <button
-          class="dividend-status-button is-${statusKey}"
-          type="button"
-          aria-label="${escapeHtml(statusLabel)}"
-          title="${escapeHtml(tooltipLines.join('\n'))}"
-          data-tooltip-side="left"
-        >
-          <span class="dividend-status-dot" aria-hidden="true"></span>
-          <span class="dividend-status-tooltip">${tooltipHtml}</span>
-        </button>
-      `;
+    const dividendValueButtonHtml = `
+      <button
+        class="dividend-status-button dividend-status-button--value is-${statusKey}"
+        type="button"
+        aria-label="${escapeHtml(statusLabel)}"
+        title="${escapeHtml(tooltipLines.join('\n'))}"
+        data-tooltip-side="left"
+      >
+        ${formatPercent(item.effectiveYield)}
+        <span class="dividend-status-tooltip">${tooltipHtml}</span>
+      </button>
+    `;
 
     return `
       <article class="holding-card" data-id="${item.localId}" data-dividend-status="${escapeHtml(item.dividendStatus || 'missing')}">
@@ -1309,13 +1307,12 @@ function renderHoldings(holdings) {
               <span class="metric-value is-income">${annualDividendText}</span>
             </div>
           </button>
-          <button class="metric-button metric-right" type="button" data-action="edit-dividend">
+          <div class="metric-static metric-right metric-static--yield">
             <div class="metric-row metric-right metric-row--yield">
-              <span class="metric-label">${LABELS.dividendYield}</span>
-              <span class="metric-value">${formatPercent(item.effectiveYield)}</span>
-              ${statusButtonHtml}
+              <button class="metric-label-button" type="button" data-action="edit-dividend">${LABELS.dividendYield}</button>
+              ${dividendValueButtonHtml}
             </div>
-          </button>
+          </div>
         </div>
       </article>
     `;
