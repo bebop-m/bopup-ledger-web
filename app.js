@@ -589,6 +589,50 @@ function parsePercentOverride(value) {
   return Math.max(0, parsed);
 }
 
+function resolveManualDividendPerShareOverride(value) {
+  if (value === '' || value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? parsePerShareOverride(trimmed) : null;
+  }
+  // Earlier migration bugs could leave a numeric 0 in local snapshots.
+  // Treat that legacy residue as "no override" so auto dividend data can recover.
+  if (value === 0) {
+    return null;
+  }
+  return parsePerShareOverride(value);
+}
+
+function resolveQuoteCurrency(quote = {}, symbol = '') {
+  const normalizedCurrency = String(quote.currency || '').trim().toUpperCase();
+  if (normalizedCurrency === 'CNY' || normalizedCurrency === 'USD' || normalizedCurrency === 'HKD') {
+    return normalizedCurrency;
+  }
+
+  const normalizedMarket = String(quote.market || '').trim().toUpperCase();
+  if (normalizedMarket === 'HK' || /\.HK$/.test(symbol)) {
+    return 'HKD';
+  }
+  if (normalizedMarket === 'US') {
+    return 'USD';
+  }
+  return 'CNY';
+}
+
+function resolveFxRateForCurrency(currency) {
+  const rates = state.rates && typeof state.rates === 'object' ? state.rates : DEFAULT_RATES;
+  const normalizedCurrency = String(currency || '').trim().toUpperCase();
+  if (normalizedCurrency === 'HKD') {
+    return safeNumber(rates.HKD, DEFAULT_RATES.HKD);
+  }
+  if (normalizedCurrency === 'USD') {
+    return safeNumber(rates.USD, DEFAULT_RATES.USD);
+  }
+  return 1;
+}
+
 function createDefaultSnapshot() {
   return {
     holdings: clone(DEFAULT_HOLDINGS),
@@ -661,9 +705,10 @@ function computeHoldings() {
     const quote = inferQuote(holding.symbol);
     const quantity = Math.max(0, safeNumber(holding.quantity, 0));
     const price = safeNumber(quote.price, 0);
-    const fxRate = safeNumber(state.rates[quote.currency], 1);
+    const currency = resolveQuoteCurrency(quote, holding.symbol);
+    const fxRate = resolveFxRateForCurrency(currency);
     const taxOverridePercent = parsePercentOverride(holding.taxRateOverride);
-    const dividendPerShareOverride = parsePerShareOverride(holding.dividendPerShareTtmOverride);
+    const dividendPerShareOverride = resolveManualDividendPerShareOverride(holding.dividendPerShareTtmOverride);
     const effectiveTax = taxOverridePercent === null ? 0 : taxOverridePercent / 100;
     const baseDividendPerShareTtm = Math.max(0, safeNumber(quote.dividendPerShareTtm, 0));
     const effectiveDividendPerShareTtm = dividendPerShareOverride === null
@@ -686,7 +731,9 @@ function computeHoldings() {
     return {
       ...holding,
       ...quote,
+      currency,
       quantity,
+      fxRate,
       dividendSource,
       dividendStatus,
       effectiveDividendPerShareTtm,
