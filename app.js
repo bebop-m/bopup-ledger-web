@@ -1261,8 +1261,10 @@ function renderHoldings(holdings) {
           <div>
             <div class="holding-name-row">
               <h3 class="holding-name">${escapeHtml(item.name)}</h3>
-              <span class="holding-divider">${getHoldingTitleDivider()}</span>
-              <span class="holding-price">${priceText}</span>
+              <span class="holding-title-price">
+                <span class="holding-divider">${getHoldingTitleDivider()}</span>
+                <span class="holding-price">${priceText}</span>
+              </span>
             </div>
             <div class="holding-code-row">
               <div class="holding-code">${escapeHtml(item.symbol)}</div>

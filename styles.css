@@ -134,9 +134,10 @@ svg {
 
 .app-title {
   margin: 0;
+  font-family: ui-rounded, "SF Pro Rounded", "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
   font-size: clamp(28px, 4vw, 34px);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 680;
+  letter-spacing: -0.025em;
   line-height: 1.04;
 }
 
@@ -357,11 +358,11 @@ svg {
 }
 
 .chart-shell {
-  margin-top: 14px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: linear-gradient(180deg, #ffffff 0%, var(--surface) 100%);
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
 
 .chart-layout {
@@ -669,7 +670,7 @@ svg {
 }
 
 .holding-card {
-  padding: 15px 14px;
+  padding: 14px 13px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
@@ -677,25 +678,45 @@ svg {
 
 .holding-head {
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-end;
 }
 
 .holding-name-row {
-  flex-wrap: wrap;
-  gap: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 8px;
+  row-gap: 2px;
 }
 
 .holding-name,
 .holding-price {
   margin: 0;
-  font-size: clamp(18px, 3vw, 22px);
+  font-size: clamp(17px, 3vw, 21px);
   font-weight: 700;
   line-height: 1.12;
 }
 
+.holding-name {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+}
+
+.holding-title-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .holding-divider {
-  margin: 0 10px;
+  margin: 0;
   color: #c4ccd7;
 }
 
@@ -720,29 +741,29 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 }
 
 .holding-code {
-  margin-top: 8px;
+  margin-top: 5px;
   letter-spacing: 0.04em;
 }
 
 .holding-code-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 5px;
+  margin-top: 6px;
 }
 
 .holding-side {
-  gap: 10px;
+  gap: 8px;
 }
 
 .weight-pill {
   min-width: 80px;
-  padding: 8px 12px;
+  padding: 7px 11px;
   border-radius: var(--radius-pill);
   background: #f5f7fa;
   box-shadow: inset 0 0 0 1px var(--line);
   color: #445873;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -753,8 +774,8 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border-radius: 50%;
   color: inherit;
@@ -764,8 +785,8 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #d6dde8;
   box-shadow: inset 0 0 0 1px rgba(21, 40, 73, 0.08);
@@ -784,17 +805,17 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 }
 
 .dividend-status-button.is-manual {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .dividend-status-button.is-manual .dividend-status-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
   background: #edf2f8;
   color: #50627f;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
 }
 
@@ -836,8 +857,8 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 .holding-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 20px;
-  margin-top: 14px;
+  gap: 10px 18px;
+  margin-top: 12px;
 }
 
 .metric-static,
@@ -868,7 +889,7 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 
 .metric-value {
   flex: 0 0 auto;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -1074,9 +1095,9 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   }
 
   .chart-shell {
-    margin-top: 12px;
-    padding: 14px;
-    border-radius: 20px;
+    margin-top: 10px;
+    padding: 0;
+    border-radius: 0;
   }
 
   .sort-chip {
@@ -1192,43 +1213,43 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   }
 
   .holding-card {
-    padding: 14px 13px;
+    padding: 13px 12px;
     border-radius: 18px;
     box-shadow: none;
   }
 
   .holding-head {
     align-items: flex-start;
-    gap: 8px;
+    gap: 7px;
   }
 
   .holding-name,
   .holding-price {
-    font-size: clamp(16px, 5.4vw, 20px);
+    font-size: clamp(15px, 5vw, 19px);
   }
 
-  .holding-divider {
-    margin: 0 8px;
+  .holding-title-price {
+    gap: 7px;
   }
 
   .holding-code {
-    margin-top: 6px;
+    margin-top: 4px;
   }
 
   .holding-code-row {
-    gap: 7px;
-    margin-top: 6px;
+    gap: 5px;
+    margin-top: 5px;
   }
 
   .holding-side {
-    gap: 8px;
+    gap: 7px;
   }
 
   .weight-pill {
     min-width: 72px;
-    padding: 7px 11px;
+    padding: 6px 10px;
     border-radius: 16px;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .dividend-status-tooltip {
@@ -1236,8 +1257,8 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   }
 
   .holding-grid {
-    gap: 8px 14px;
-    margin-top: 10px;
+    gap: 7px 12px;
+    margin-top: 9px;
   }
 
   .metric-static,
@@ -1271,7 +1292,7 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 
   .metric-value {
     flex: 1 1 auto;
-    font-size: clamp(15px, 4.8vw, 17px);
+    font-size: clamp(14px, 4.5vw, 16px);
     line-height: 1.12;
     text-align: right;
     white-space: nowrap;
@@ -1279,7 +1300,7 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 
   .metric-static .metric-value,
   .metric-button:not(.metric-right) .metric-value {
-    font-size: clamp(13px, 4.2vw, 15px);
+    font-size: clamp(12px, 3.9vw, 14px);
   }
 
   .panel-note,
@@ -1304,6 +1325,15 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   .holding-side {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .holding-name-row {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+  }
+
+  .holding-title-price {
+    justify-self: start;
   }
 
   .summary-grid {
