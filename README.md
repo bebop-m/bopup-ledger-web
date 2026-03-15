@@ -3,7 +3,7 @@
 这版网页已经切换成纯静态方案：
 
 - 前端页面只读取 `data/market.json`
-- `GitHub Actions` 每 5 分钟自动更新一次价格和汇率
+- `GitHub Actions` 每天自动更新一次后台数据
 - `GitHub Pages` 或其他静态托管只负责发布网页文件
 - 不再依赖 Longbridge、Netlify Functions 或本地常驻服务
 
@@ -20,7 +20,7 @@
 - 负债扣减总金额
 - 按持仓市值 / 股息率排序
 - 隐私隐藏
-- 腾讯股票接口定时更新价格
+- 腾讯股票接口作为后台备用价格快照
 - 打开页面时额外获取一次腾讯最新价格
 - Frankfurter 定时更新汇率
 - 港股 TTM 股息率自动更新
@@ -38,8 +38,8 @@
 
 ```text
 GitHub Actions
-  -> 运行 Python 脚本
-  -> 从腾讯股票接口拉股票价格
+  -> 每天运行一次 Python 脚本
+  -> 从腾讯股票接口拉备用价格快照
   -> 从 Yahoo Finance 拉股息历史并计算 TTM 股息率
   -> 从 Frankfurter 拉汇率
   -> 更新 data/market.json
@@ -67,9 +67,9 @@ http://127.0.0.1:4173/
 
 工作流会：
 
-- 每 5 分钟运行一次
+- 每天运行一次
 - 更新 `data/market.json`
-- 自动提交最新行情文件
+- 自动提交最新后台数据文件
 
 如果你是用 GitHub 网页手动上传文件，记得把隐藏目录 `.github` 也一起处理，不然工作流不会生效。
 

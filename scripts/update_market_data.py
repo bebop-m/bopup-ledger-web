@@ -27,9 +27,26 @@ TENCENT_HEADERS = {
 }
 
 
+def normalize_symbol(raw_symbol):
+    value = str(raw_symbol or '').strip().upper()
+    if not value:
+        return ''
+    if re.fullmatch(r'\d{6}\.SS', value):
+        return value.replace('.SS', '.SH')
+    if re.fullmatch(r'\d{5}\.HK', value) or re.fullmatch(r'\d{6}\.(SH|SZ)', value):
+        return value
+    if re.fullmatch(r'[A-Z][A-Z0-9.-]*', value):
+        return value
+    if re.fullmatch(r'\d{5}', value):
+        return f'{value}.HK'
+    if re.fullmatch(r'\d{6}', value):
+        return f'{value}.SH' if re.match(r'^[569]', value) else f'{value}.SZ'
+    return value
+
+
 def load_watchlist():
     payload = json.loads(WATCHLIST_PATH.read_text(encoding='utf-8-sig'))
-    return [str(symbol).strip().upper() for symbol in payload.get('symbols', []) if str(symbol).strip()]
+    return [normalize_symbol(symbol) for symbol in payload.get('symbols', []) if normalize_symbol(symbol)]
 
 
 def load_previous_snapshot():

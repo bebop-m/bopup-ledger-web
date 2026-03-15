@@ -225,7 +225,8 @@ function normalizeSymbol(rawSymbol) {
     return `${value}.HK`;
   }
   if (/^\d{6}$/.test(value)) {
-    return /^[689]/.test(value) ? `${value}.SH` : `${value}.SZ`;
+    // Shanghai-listed ETFs/funds commonly use 5xxxxx, while Shenzhen funds are often 1xxxxx.
+    return /^[569]/.test(value) ? `${value}.SH` : `${value}.SZ`;
   }
   return value;
 }
