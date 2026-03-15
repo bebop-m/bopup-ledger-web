@@ -1259,29 +1259,30 @@ function renderHoldings(holdings) {
     const tooltipLines = buildDividendTooltipLines(item);
     const tooltipHtml = tooltipLines.map((line) => `<span>${escapeHtml(line)}</span>`).join('');
     const statusLabel = getDividendStatusLabel(statusKey);
+    const statusButtonHtml = statusKey === 'fresh'
+      ? ''
+      : `
+        <button
+          class="dividend-status-button is-${statusKey}"
+          type="button"
+          aria-label="${escapeHtml(statusLabel)}"
+          title="${escapeHtml(tooltipLines.join('\n'))}"
+          data-tooltip-side="left"
+        >
+          <span class="dividend-status-dot" aria-hidden="true"></span>
+          <span class="dividend-status-tooltip">${tooltipHtml}</span>
+        </button>
+      `;
 
     return `
       <article class="holding-card" data-id="${item.localId}" data-dividend-status="${escapeHtml(item.dividendStatus || 'missing')}">
         <header class="holding-head">
           <div class="holding-main">
-            <div class="holding-name-row">
-              <h3 class="holding-name">${escapeHtml(item.name)}</h3>
-              <span class="holding-title-price">
-                <span class="holding-divider">${getHoldingTitleDivider()}</span>
-                <span class="holding-price">${priceText}</span>
-              </span>
-            </div>
-            <div class="holding-code-row">
-              <div class="holding-code">${escapeHtml(item.symbol)}</div>
-              <button
-                class="dividend-status-button is-${statusKey}"
-                type="button"
-                aria-label="${escapeHtml(statusLabel)}"
-                title="${escapeHtml(tooltipLines.join('\n'))}"
-              >
-                <span class="dividend-status-dot" aria-hidden="true">${statusKey === 'manual' ? 'M' : ''}</span>
-                <span class="dividend-status-tooltip">${tooltipHtml}</span>
-              </button>
+            <h3 class="holding-name">${escapeHtml(item.name)}</h3>
+            <div class="holding-meta-row">
+              <span class="holding-price">${priceText}</span>
+              <span class="holding-divider">${getHoldingTitleDivider()}</span>
+              <span class="holding-code">${escapeHtml(item.symbol)}</span>
             </div>
           </div>
           <div class="holding-side">
@@ -1309,9 +1310,10 @@ function renderHoldings(holdings) {
             </div>
           </button>
           <button class="metric-button metric-right" type="button" data-action="edit-dividend">
-            <div class="metric-row metric-right">
+            <div class="metric-row metric-right metric-row--yield">
               <span class="metric-label">${LABELS.dividendYield}</span>
               <span class="metric-value">${formatPercent(item.effectiveYield)}</span>
+              ${statusButtonHtml}
             </div>
           </button>
         </div>
