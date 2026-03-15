@@ -555,9 +555,17 @@ function sanitizeHolding(item, index, quoteMap = {}) {
     return null;
   }
   const quote = inferQuoteFromMap(symbol, quoteMap);
+  const hasExplicitDividendOverride = item && item.dividendPerShareTtmOverrideTouched === true;
+  const rawManualDividendOverride = item && item.dividendPerShareTtmOverride != null
+    ? item.dividendPerShareTtmOverride
+    : null;
   const nextDividendPerShareOverride = sanitizePerShareOverrideInput(
-    item && item.dividendPerShareTtmOverride != null
-      ? item.dividendPerShareTtmOverride
+    rawManualDividendOverride != null
+      ? (
+          String(rawManualDividendOverride).trim() === '0' && !hasExplicitDividendOverride
+            ? ''
+            : rawManualDividendOverride
+        )
       : (() => {
           // One-time compatibility read from older browser snapshots that stored dividend yield percentages.
           const legacyYieldRatio = normalizeYieldRatio(item && item.dividendYieldOverride);
@@ -574,7 +582,8 @@ function sanitizeHolding(item, index, quoteMap = {}) {
     quantity: Math.max(0, safeNumber(item && item.quantity, 0)),
     bucket: item && item.bucket === 'income' ? 'income' : 'core',
     taxRateOverride: item && item.taxRateOverride != null ? String(item.taxRateOverride) : '',
-    dividendPerShareTtmOverride: nextDividendPerShareOverride
+    dividendPerShareTtmOverride: nextDividendPerShareOverride,
+    dividendPerShareTtmOverrideTouched: nextDividendPerShareOverride !== ''
   };
 }
 
@@ -589,17 +598,20 @@ function parsePercentOverride(value) {
   return Math.max(0, parsed);
 }
 
-function resolveManualDividendPerShareOverride(value) {
+function resolveManualDividendPerShareOverride(value, isExplicit = false) {
   if (value === '' || value === null || value === undefined) {
     return null;
   }
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    return trimmed ? parsePerShareOverride(trimmed) : null;
+    if (!trimmed || (trimmed === '0' && !isExplicit)) {
+      return null;
+    }
+    return parsePerShareOverride(trimmed);
   }
   // Earlier migration bugs could leave a numeric 0 in local snapshots.
-  // Treat that legacy residue as "no override" so auto dividend data can recover.
-  if (value === 0) {
+  // Treat that legacy residue as "no override" unless the user explicitly set it.
+  if (value === 0 && !isExplicit) {
     return null;
   }
   return parsePerShareOverride(value);
@@ -708,7 +720,10 @@ function computeHoldings() {
     const currency = resolveQuoteCurrency(quote, holding.symbol);
     const fxRate = resolveFxRateForCurrency(currency);
     const taxOverridePercent = parsePercentOverride(holding.taxRateOverride);
-    const dividendPerShareOverride = resolveManualDividendPerShareOverride(holding.dividendPerShareTtmOverride);
+    const dividendPerShareOverride = resolveManualDividendPerShareOverride(
+      holding.dividendPerShareTtmOverride,
+      holding.dividendPerShareTtmOverrideTouched === true
+    );
     const effectiveTax = taxOverridePercent === null ? 0 : taxOverridePercent / 100;
     const baseDividendPerShareTtm = Math.max(0, safeNumber(quote.dividendPerShareTtm, 0));
     const effectiveDividendPerShareTtm = dividendPerShareOverride === null
@@ -1074,7 +1089,13 @@ function handleModalSave() {
   if (state.modal === 'dividend') {
     const value = sanitizePerShareOverrideInput(document.getElementById('modalDividendInput').value.trim());
     state.holdings = state.holdings.map((item) => (
-      item.localId === state.modalPayload.localId ? { ...item, dividendPerShareTtmOverride: value } : item
+      item.localId === state.modalPayload.localId
+        ? {
+            ...item,
+            dividendPerShareTtmOverride: value,
+            dividendPerShareTtmOverrideTouched: value !== ''
+          }
+        : item
     ));
   }
 
@@ -1103,7 +1124,8 @@ function handleModalSave() {
       quantity,
       bucket,
       taxRateOverride: '',
-      dividendPerShareTtmOverride: ''
+      dividendPerShareTtmOverride: '',
+      dividendPerShareTtmOverrideTouched: false
     });
     state.quotes = mergeQuotes(state.quotes, { [symbol]: inferQuote(symbol) });
     state.nextId += 1;
