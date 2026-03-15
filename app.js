@@ -21,13 +21,19 @@ const UI_FLAGS = {
   hideAllocationPie: true,
   bucketSummaryV2: true,
   subtleSortControls: true,
-  refinedAccentColors: true
+  refinedAccentColors: true,
+  allocationLegendThresholdEnabled: true,
+  summaryOverallYieldNote: true,
+  hideSnapshotImportEntry: true,
+  summaryActionCluster: true,
+  tooltipPreferRight: true
 };
 
 const UI_TEXT = {
   sort: '\u6392\u5e8f',
   overallAverageNetYield: '\u6574\u4f53\u5e73\u5747\u7a0e\u540e\u80a1\u606f\u7387'
 };
+const ALLOCATION_LEGEND_MIN_WEIGHT = 0.05;
 
 const DEFAULT_RATES = {
   CNY: 1,
@@ -171,6 +177,8 @@ const refs = {
   exportButton: document.getElementById('exportButton'),
   importButton: document.getElementById('importButton'),
   importFileInput: document.getElementById('importFileInput'),
+  appKicker: document.querySelector('.app-kicker'),
+  summaryActions: document.querySelector('.panel-bar--spread .text-actions'),
   summaryGrid: document.getElementById('summaryGrid'),
   companyDonut: document.getElementById('companyDonut'),
   companyLegend: document.getElementById('companyLegend'),
@@ -181,11 +189,75 @@ const refs = {
   marketTimestamp: document.getElementById('marketTimestamp'),
   refreshButton: document.getElementById('refreshButton'),
   addButton: document.getElementById('addButton'),
+  iconActions: document.querySelector('.icon-actions'),
   stockList: document.getElementById('stockList'),
   modalRoot: document.getElementById('modalRoot'),
   sortGroup: document.querySelector('.sort-group'),
   sortChips: Array.from(document.querySelectorAll('.sort-chip'))
 };
+
+let sortToggleButton = null;
+
+function ensureSortToggleButton() {
+  if (sortToggleButton || !refs.iconActions) {
+    return sortToggleButton;
+  }
+  sortToggleButton = document.createElement('button');
+  sortToggleButton.type = 'button';
+  sortToggleButton.className = 'circle-button sort-toggle-button';
+  sortToggleButton.setAttribute('aria-label', UI_TEXT.sort);
+  sortToggleButton.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 6.2v11.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+      <path d="M8.6 9.6L12 6.2l3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path d="M8.6 14.4L12 17.8l3.4-3.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+    </svg>
+  `;
+  refs.iconActions.insertBefore(sortToggleButton, refs.refreshButton);
+  sortToggleButton.addEventListener('click', () => {
+    if (!UI_FLAGS.subtleSortControls) {
+      return;
+    }
+    state.sortMenuOpen = !state.sortMenuOpen;
+    renderApp();
+  });
+  return sortToggleButton;
+}
+
+function configureUiChrome() {
+  if (refs.appKicker) {
+    refs.appKicker.textContent = 'BEBOP LEDGER';
+  }
+
+  if (UI_FLAGS.summaryActionCluster && refs.summaryActions) {
+    refs.summaryActions.classList.add('summary-actions-cluster');
+    refs.summaryActions.append(refs.exportButton, refs.privacyButton);
+  }
+
+  refs.exportButton.className = 'circle-button summary-action-button';
+  refs.exportButton.setAttribute('aria-label', '\u5bfc\u51fa\u5feb\u7167');
+  refs.exportButton.title = '\u5bfc\u51fa\u5feb\u7167';
+  refs.exportButton.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 5.5v9.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+      <path d="M8.6 11.4L12 14.8l3.4-3.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path d="M5.8 18h12.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+    </svg>
+  `;
+
+  if (UI_FLAGS.hideSnapshotImportEntry) {
+    refs.importButton.hidden = true;
+    refs.importButton.setAttribute('aria-hidden', 'true');
+    refs.importButton.tabIndex = -1;
+  }
+
+  if (UI_FLAGS.subtleSortControls) {
+    const button = ensureSortToggleButton();
+    if (button) {
+      button.hidden = false;
+    }
+  }
+}
 
 function roundTo(value, digits = 6) {
   const numeric = Number(value);
@@ -410,6 +482,23 @@ function buildDividendTooltipLines(item) {
     lines.push(`${LABELS.lastExDate}：${lastExDate}`);
   }
   return lines;
+}
+
+function updateDividendTooltipSide(button) {
+  if (!button || !UI_FLAGS.tooltipPreferRight) {
+    return;
+  }
+  const tooltip = button.querySelector('.dividend-status-tooltip');
+  if (!tooltip) {
+    return;
+  }
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 0;
+  const fallbackWidth = safeNumber(tooltip.offsetWidth, 168) || 168;
+  const rect = button.getBoundingClientRect();
+  const rightSpace = viewportWidth - rect.right;
+  const leftSpace = rect.left;
+  const side = rightSpace >= fallbackWidth + 16 || rightSpace >= leftSpace ? 'right' : 'left';
+  button.dataset.tooltipSide = side;
 }
 
 function escapeHtml(value) {
@@ -927,6 +1016,9 @@ function renderSummary(summary) {
   const totalLabel = formatDisplayMoney(summary.netMarketValueCny, 'CNY');
   const dividendLabel = formatDisplayMoney(summary.totalDividendCny, 'CNY');
   const liabilityLabel = formatDisplayMoney(state.liabilityCny, 'CNY');
+  const overallAverageNetYield = summary.totalMarketValueCny > 0
+    ? summary.totalDividendCny / summary.totalMarketValueCny
+    : 0;
   const mainCards = `
     <article class="summary-card">
       <div class="summary-top">
@@ -939,6 +1031,7 @@ function renderSummary(summary) {
     <article class="summary-card">
       <div class="summary-label">${LABELS.totalDividend}</div>
       <div class="summary-value is-income">${dividendLabel}</div>
+      ${UI_FLAGS.summaryOverallYieldNote ? `<p class="summary-note">${UI_TEXT.overallAverageNetYield} ${formatPercent(overallAverageNetYield)}</p>` : ''}
     </article>
   `;
 
@@ -992,7 +1085,12 @@ function renderDonut(segments) {
 
 function renderLegend(segments) {
   const total = segments.reduce((sum, item) => sum + item.value, 0) || 1;
-  const visible = state.legendExpanded ? segments : segments.slice(0, LEGEND_COLLAPSED_COUNT);
+  const thresholdVisible = UI_FLAGS.allocationLegendThresholdEnabled
+    ? segments.filter((segment) => segment.value / total >= ALLOCATION_LEGEND_MIN_WEIGHT)
+    : segments.slice(0, LEGEND_COLLAPSED_COUNT);
+  const visible = state.legendExpanded
+    ? segments
+    : (thresholdVisible.length ? thresholdVisible : segments.slice(0, LEGEND_COLLAPSED_COUNT));
 
   refs.companyLegend.innerHTML = visible.map((segment) => `
     <div class="legend-row">
@@ -1004,7 +1102,7 @@ function renderLegend(segments) {
     </div>
   `).join('');
 
-  if (segments.length > LEGEND_COLLAPSED_COUNT) {
+  if (visible.length < segments.length) {
     refs.legendToggle.hidden = false;
     refs.legendToggle.textContent = state.legendExpanded
       ? LABELS.collapseLegend
@@ -1042,7 +1140,7 @@ function renderBuckets(segments, holdings, summary) {
             </button>
           `).join('')}
         </div>
-        <div class="bucket-overall-yield">${UI_TEXT.overallAverageNetYield} ${formatPercent(overallNetYield)}</div>
+        ${UI_FLAGS.summaryOverallYieldNote ? '' : `<div class="bucket-overall-yield">${UI_TEXT.overallAverageNetYield} ${formatPercent(overallNetYield)}</div>`}
         ${activeItem ? `
           <div class="bucket-detail-card">
             <div class="bucket-detail-row">
@@ -1080,6 +1178,12 @@ function renderSortChips() {
   if (refs.sortGroup) {
     refs.sortGroup.classList.toggle('sort-group--subtle', UI_FLAGS.subtleSortControls);
     refs.sortGroup.dataset.open = state.sortMenuOpen ? 'true' : 'false';
+    refs.sortGroup.hidden = UI_FLAGS.subtleSortControls ? !state.sortMenuOpen : false;
+  }
+  if (sortToggleButton) {
+    sortToggleButton.hidden = !UI_FLAGS.subtleSortControls;
+    sortToggleButton.classList.toggle('is-active', state.sortMenuOpen);
+    sortToggleButton.title = `${UI_TEXT.sort} \u00b7 ${state.sortField === 'effectiveYield' ? LABELS.sortDividendYield : LABELS.sortMarketValue}`;
   }
   refs.sortChips.forEach((chip) => {
     const field = chip.dataset.sortField;
@@ -1087,11 +1191,9 @@ function renderSortChips() {
     const label = field === 'effectiveYield' ? LABELS.sortDividendYield : LABELS.sortMarketValue;
     const arrow = isActive ? (state.sortDirection === 'desc' ? '\u2193' : '\u2191') : '';
     chip.classList.toggle('is-active', isActive);
-    chip.hidden = UI_FLAGS.subtleSortControls ? (!state.sortMenuOpen && !isActive) : false;
-    chip.classList.toggle('is-subtle-primary', UI_FLAGS.subtleSortControls && isActive && !state.sortMenuOpen);
-    chip.textContent = UI_FLAGS.subtleSortControls && isActive && !state.sortMenuOpen
-      ? `${UI_TEXT.sort} \u00b7 ${label} ${arrow || '\u2193'}`
-      : (arrow ? `${label} ${arrow}` : label);
+    chip.hidden = UI_FLAGS.subtleSortControls ? !state.sortMenuOpen : false;
+    chip.classList.toggle('is-subtle-primary', false);
+    chip.textContent = arrow ? `${label} ${arrow}` : label;
   });
 }
 
@@ -1704,6 +1806,8 @@ function renderApp() {
   renderHoldings(summary.holdings);
 }
 
+configureUiChrome();
+
 refs.privacyButton.addEventListener('click', () => {
   state.showAmounts = !state.showAmounts;
   saveState();
@@ -1735,12 +1839,10 @@ refs.sortChips.forEach((chip) => {
       return;
     }
     if (UI_FLAGS.subtleSortControls) {
-      const isActive = state.sortField === nextField;
-      if (!state.sortMenuOpen && isActive) {
-        state.sortMenuOpen = true;
-        renderApp();
+      if (!state.sortMenuOpen) {
         return;
       }
+      const isActive = state.sortField === nextField;
       if (isActive) {
         state.sortDirection = state.sortDirection === 'desc' ? 'asc' : 'desc';
       } else {
@@ -1787,6 +1889,22 @@ refs.bucketTrack.addEventListener('click', (event) => {
   renderApp();
 });
 
+refs.stockList.addEventListener('mouseover', (event) => {
+  const button = event.target.closest('.dividend-status-button');
+  if (!button) {
+    return;
+  }
+  updateDividendTooltipSide(button);
+});
+
+refs.stockList.addEventListener('focusin', (event) => {
+  const button = event.target.closest('.dividend-status-button');
+  if (!button) {
+    return;
+  }
+  updateDividendTooltipSide(button);
+});
+
 refs.summaryGrid.addEventListener('click', (event) => {
   const trigger = event.target.closest('[data-summary-action="liability"]');
   if (!trigger) {
@@ -1798,6 +1916,10 @@ refs.summaryGrid.addEventListener('click', (event) => {
 });
 
 refs.stockList.addEventListener('click', (event) => {
+  const tooltipButton = event.target.closest('.dividend-status-button');
+  if (tooltipButton) {
+    updateDividendTooltipSide(tooltipButton);
+  }
   const button = event.target.closest('[data-action]');
   const card = event.target.closest('.holding-card');
   if (!button || !card) {
