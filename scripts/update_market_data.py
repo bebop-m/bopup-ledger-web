@@ -55,16 +55,20 @@ def normalize_symbol(raw_symbol):
     value = str(raw_symbol or '').strip().upper()
     if not value:
         return ''
+    def normalize_cn_suffix(digits):
+        return f'{digits}.SH' if re.match(r'^[569]', digits) else f'{digits}.SZ'
     if re.fullmatch(r'\d{6}\.SS', value):
         return value.replace('.SS', '.SH')
-    if re.fullmatch(r'\d{5}\.HK', value) or re.fullmatch(r'\d{6}\.(SH|SZ)', value):
+    if re.fullmatch(r'\d{5}\.HK', value):
         return value
+    if re.fullmatch(r'\d{6}\.(SH|SZ)', value):
+        return normalize_cn_suffix(value[:6])
     if re.fullmatch(r'[A-Z][A-Z0-9.-]*', value):
         return value
     if re.fullmatch(r'\d{5}', value):
         return f'{value}.HK'
     if re.fullmatch(r'\d{6}', value):
-        return f'{value}.SH' if re.match(r'^[569]', value) else f'{value}.SZ'
+        return normalize_cn_suffix(value)
     return value
 
 

@@ -406,11 +406,15 @@ function normalizeSymbol(rawSymbol) {
   if (!value) {
     return '';
   }
+  const normalizeCnSuffix = (digits) => (/^[569]/.test(digits) ? `${digits}.SH` : `${digits}.SZ`);
   if (/^\d{6}\.SS$/.test(value)) {
     return value.replace('.SS', '.SH');
   }
-  if (/^\d{5}\.HK$/.test(value) || /^\d{6}\.(SH|SZ)$/.test(value)) {
+  if (/^\d{5}\.HK$/.test(value)) {
     return value;
+  }
+  if (/^\d{6}\.(SH|SZ)$/.test(value)) {
+    return normalizeCnSuffix(value.slice(0, 6));
   }
   if (/^[A-Z][A-Z0-9.-]*$/.test(value)) {
     return value;
@@ -419,8 +423,7 @@ function normalizeSymbol(rawSymbol) {
     return `${value}.HK`;
   }
   if (/^\d{6}$/.test(value)) {
-    // Shanghai-listed ETFs/funds commonly use 5xxxxx, while Shenzhen funds are often 1xxxxx.
-    return /^[569]/.test(value) ? `${value}.SH` : `${value}.SZ`;
+    return normalizeCnSuffix(value);
   }
   return value;
 }
