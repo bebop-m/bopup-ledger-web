@@ -222,7 +222,7 @@ function ensureSortToggleButton() {
     }
     event.stopPropagation();
     state.sortMenuOpen = !state.sortMenuOpen;
-    renderApp();
+    renderSortChips();
   });
   return sortToggleButton;
 }
@@ -261,9 +261,13 @@ function configureUiChrome() {
     if (button) {
       button.hidden = false;
     }
-    if (refs.sortGroup && refs.iconActions && refs.sortGroup.parentElement !== refs.iconActions) {
-      refs.sortGroup.classList.add('sort-group--popover');
-      refs.iconActions.prepend(refs.sortGroup);
+    if (refs.sortGroup && refs.iconActions) {
+      refs.sortGroup.classList.remove('sort-group--popover');
+      if (refs.sortGroup.parentElement !== refs.iconActions) {
+        refs.iconActions.insertBefore(refs.sortGroup, refs.refreshButton);
+      } else if (refs.refreshButton && refs.sortGroup.nextElementSibling !== refs.refreshButton) {
+        refs.iconActions.insertBefore(refs.sortGroup, refs.refreshButton);
+      }
     }
   }
 }
@@ -1095,12 +1099,14 @@ function renderDonut(segments) {
 
 function renderLegend(segments) {
   const total = segments.reduce((sum, item) => sum + item.value, 0) || 1;
-  const thresholdVisible = UI_FLAGS.allocationLegendThresholdEnabled
+  const defaultVisible = UI_FLAGS.allocationLegendThresholdEnabled
     ? segments.filter((segment) => segment.value / total >= ALLOCATION_LEGEND_MIN_WEIGHT)
     : segments.slice(0, LEGEND_COLLAPSED_COUNT);
+  const collapsedVisible = defaultVisible.length ? defaultVisible : segments.slice(0, LEGEND_COLLAPSED_COUNT);
   const visible = state.legendExpanded
     ? segments
-    : (thresholdVisible.length ? thresholdVisible : segments.slice(0, LEGEND_COLLAPSED_COUNT));
+    : collapsedVisible;
+  const canToggleLegend = collapsedVisible.length < segments.length;
 
   refs.companyLegend.innerHTML = visible.map((segment) => `
     <div class="legend-row">
@@ -1112,7 +1118,7 @@ function renderLegend(segments) {
     </div>
   `).join('');
 
-  if (visible.length < segments.length) {
+  if (canToggleLegend) {
     refs.legendToggle.hidden = false;
     refs.legendToggle.textContent = state.legendExpanded
       ? LABELS.collapseLegend
@@ -1192,7 +1198,7 @@ function renderSortChips() {
     refs.sortGroup.hidden = UI_FLAGS.subtleSortControls ? !state.sortMenuOpen : false;
   }
   if (sortToggleButton) {
-    sortToggleButton.hidden = !UI_FLAGS.subtleSortControls;
+    sortToggleButton.hidden = !UI_FLAGS.subtleSortControls || state.sortMenuOpen;
     sortToggleButton.classList.toggle('is-active', state.sortMenuOpen);
     sortToggleButton.setAttribute('aria-expanded', state.sortMenuOpen ? 'true' : 'false');
     sortToggleButton.title = `${UI_TEXT.sort} \u00b7 ${state.sortField === 'effectiveYield' ? LABELS.sortDividendYield : LABELS.sortMarketValue}`;

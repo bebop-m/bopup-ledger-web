@@ -576,19 +576,11 @@ svg {
   gap: 6px;
 }
 
-.sort-group.sort-group--subtle.sort-group--popover {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 6px);
-  z-index: 24;
-  width: max-content;
-  padding: 6px;
-  border: 1px solid rgba(21, 40, 73, 0.08);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 14px 34px rgba(24, 39, 64, 0.12);
+.icon-actions > .sort-group.sort-group--subtle {
+  width: auto;
   flex-wrap: nowrap;
-  backdrop-filter: blur(12px);
+  order: 0;
+  gap: 6px;
 }
 
 .sort-chip {
@@ -632,7 +624,7 @@ svg {
   padding-inline: 12px;
 }
 
-.sort-group.sort-group--subtle.sort-group--popover .sort-chip {
+.icon-actions > .sort-group.sort-group--subtle .sort-chip {
   min-height: 34px;
   padding: 0 12px;
 }
@@ -1066,11 +1058,9 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
     font-size: 11px;
   }
 
-  .icon-actions .sort-group.sort-group--popover {
-    width: max-content;
+  .icon-actions > .sort-group {
+    width: auto;
     order: 0;
-    top: calc(100% + 4px);
-    left: 0;
     grid-column: auto;
     grid-row: auto;
   }
@@ -1144,12 +1134,6 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 
   .list-heading {
     min-width: 0;
-  }
-
-  .sort-group {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
   }
 
   .icon-actions {
