@@ -712,6 +712,21 @@ svg {
   margin-top: 14px;
 }
 
+.stock-list .holding-swipe {
+  animation: holding-fade-in var(--motion-base) var(--ease-soft) both;
+}
+
+@keyframes holding-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .holding-swipe {
   position: relative;
   overflow: hidden;
@@ -762,6 +777,7 @@ svg {
   transform: translateX(calc(var(--holding-swipe-offset, 0px) * -1));
   transition: transform var(--motion-base) var(--ease-soft);
   will-change: transform;
+  overflow: hidden;
 }
 
 .holding-head {

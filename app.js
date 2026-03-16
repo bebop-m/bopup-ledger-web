@@ -165,12 +165,12 @@ const DEFAULT_QUOTES = normalizeSeedQuoteMap({
   '02333.HK': { name: '长城汽车', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 },
   '600177.SH': { name: '雅戈尔', market: 'CN', currency: 'CNY', price: 0, dividendPerShareTtm: 0 },
   '03900.HK': { name: '绿城中国', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 },
-  '09982.HK': { name: '建发物业', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 },
   '01995.HK': { name: '永升服务', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 },
   '03316.HK': { name: '滨江服务', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 },
   '00816.HK': { name: '金茂服务', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 },
-  '00405.HK': { name: '越秀房产基金', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 },
-  '513530.SH': { name: '港股通红利ETF', market: 'CN', currency: 'CNY', price: 0, dividendPerShareTtm: 0 }
+  '513530.SH': { name: '港股通红利ETF', market: 'CN', currency: 'CNY', price: 0, dividendPerShareTtm: 0 },
+  '00823.HK': { name: '领展房产基金', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 },
+  '02156.HK': { name: '通力环球', market: 'HK', currency: 'HKD', price: 0, dividendPerShareTtm: 0 }
 });
 
 const DEFAULT_HOLDINGS = [
@@ -189,12 +189,12 @@ const DEFAULT_HOLDINGS = [
   { localId: 13, symbol: '02333.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
   { localId: 14, symbol: '600177.SH', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
   { localId: 15, symbol: '03900.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
-  { localId: 16, symbol: '09982.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
-  { localId: 17, symbol: '01995.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
-  { localId: 18, symbol: '03316.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
-  { localId: 19, symbol: '00816.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
-  { localId: 20, symbol: '00405.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
-  { localId: 21, symbol: '513530.SH', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' }
+  { localId: 16, symbol: '01995.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
+  { localId: 17, symbol: '03316.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
+  { localId: 18, symbol: '00816.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
+  { localId: 19, symbol: '513530.SH', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
+  { localId: 20, symbol: '00823.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' },
+  { localId: 21, symbol: '02156.HK', quantity: 100, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' }
 ];
 
 /* ----------------------------------------------------------------------------
@@ -1348,7 +1348,7 @@ function renderHoldings(holdings) {
     return;
   }
 
-  refs.stockList.innerHTML = holdings.map((item) => {
+  refs.stockList.innerHTML = holdings.map((item, index) => {
     const priceText = state.showAmounts ? formatPlainPrice(item.price) : MASK_PRICE;
     const marketValueText = state.showAmounts ? formatMoney(item.marketValueCny, 'CNY') : MASK_AMOUNT;
     const annualDividendText = state.showAmounts ? formatMoney(item.netAnnualDividendCny, 'CNY') : MASK_AMOUNT;
@@ -1357,6 +1357,7 @@ function renderHoldings(holdings) {
     const tooltipLines = buildDividendTooltipLines(item);
     const tooltipHtml = tooltipLines.map((line) => `<span>${escapeHtml(line)}</span>`).join('');
     const statusLabel = getDividendStatusLabel(statusKey);
+    const staggerDelay = Math.min(index * 25, 400);
     const dividendValueButtonHtml = `
       <button
         class="dividend-status-button dividend-status-button--value is-${statusKey}"
@@ -1372,7 +1373,7 @@ function renderHoldings(holdings) {
     `;
 
     return `
-      <div class="holding-swipe" data-id="${item.localId}" style="--holding-swipe-offset:0px;">
+      <div class="holding-swipe" data-id="${item.localId}" style="--holding-swipe-offset:0px;animation-delay:${staggerDelay}ms;">
         <button class="holding-swipe-delete" type="button" data-action="delete" aria-label="${LABELS.deleteConfirm} ${escapeHtml(item.name)}">
           <span>删除</span>
         </button>
