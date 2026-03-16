@@ -290,8 +290,19 @@ svg {
 }
 
 .sort-toggle-button.is-active {
-  background: var(--brand-soft);
+  background: rgba(21, 40, 73, 0.08);
+  box-shadow:
+    0 10px 18px rgba(21, 40, 73, 0.08),
+    inset 0 0 0 1px rgba(21, 40, 73, 0.08);
   color: var(--brand);
+}
+
+.sort-toggle-button {
+  will-change: transform;
+}
+
+.sort-toggle-button:active {
+  transform: scale(0.94);
 }
 
 .circle-button .eye-slash {
@@ -642,17 +653,52 @@ svg {
 .icon-actions {
   position: relative;
   overflow: visible;
+  isolation: isolate;
 }
 
 .sort-group.sort-group--subtle {
   gap: 6px;
+  align-items: center;
 }
 
 .icon-actions > .sort-group.sort-group--subtle {
-  width: auto;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 8;
+  width: max-content;
+  max-width: min(78vw, 220px);
   flex-wrap: nowrap;
   order: 0;
   gap: 6px;
+  padding: 4px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 14px 30px rgba(21, 40, 73, 0.14),
+    inset 0 0 0 1px rgba(21, 40, 73, 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transform-origin: top right;
+  transition:
+    opacity var(--motion-base) var(--ease-soft),
+    transform var(--motion-base) var(--ease-soft),
+    visibility 0s linear var(--motion-base);
+}
+
+.icon-actions > .sort-group.sort-group--subtle[data-open="false"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px) scale(0.96);
+}
+
+.icon-actions > .sort-group.sort-group--subtle[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
 }
 
 .sort-chip {
@@ -673,7 +719,8 @@ svg {
     background-color var(--motion-quick) var(--ease-soft),
     box-shadow var(--motion-quick) var(--ease-soft),
     color var(--motion-quick) var(--ease-soft),
-    transform var(--motion-quick) var(--ease-soft);
+    transform var(--motion-base) var(--ease-soft),
+    opacity var(--motion-base) var(--ease-soft);
 }
 
 .sort-chip.is-active {
@@ -690,10 +737,16 @@ svg {
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
+  opacity: 0;
+  transform: translateY(6px) scale(0.97);
+  transition-delay: 0ms;
 }
 
 .sort-group.sort-group--subtle .sort-chip.is-active {
-  background: rgba(21, 40, 73, 0.06);
+  background: rgba(21, 40, 73, 0.07);
+  box-shadow:
+    inset 0 0 0 1px rgba(21, 40, 73, 0.08),
+    0 6px 16px rgba(21, 40, 73, 0.06);
   color: var(--brand);
 }
 
@@ -704,6 +757,11 @@ svg {
 .icon-actions > .sort-group.sort-group--subtle .sort-chip {
   min-height: 34px;
   padding: 0 12px;
+}
+
+.icon-actions > .sort-group.sort-group--subtle[data-open="true"] .sort-chip {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .stock-list {
@@ -731,10 +789,12 @@ svg {
 .holding-swipe-delete::before {
   content: "";
   position: absolute;
-  inset: 2px 0 2px 8px;
+  inset: 0;
   border-radius: 18px;
-  background: linear-gradient(180deg, #faf0ee 0%, #f6e5e1 100%);
-  box-shadow: inset 0 0 0 1px rgba(173, 97, 88, 0.08);
+  background: linear-gradient(180deg, #fbf0ec 0%, #f7e6e1 100%);
+  box-shadow:
+    inset 12px 0 18px -16px rgba(132, 77, 70, 0.28),
+    inset 0 0 0 1px rgba(173, 97, 88, 0.08);
   transition:
     background-color var(--motion-base) var(--ease-soft),
     box-shadow var(--motion-base) var(--ease-soft),
@@ -742,14 +802,7 @@ svg {
 }
 
 .holding-swipe-delete::after {
-  content: "";
-  position: absolute;
-  top: 10px;
-  bottom: 10px;
-  left: 0;
-  width: 8px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0) 100%);
-  pointer-events: none;
+  content: none;
 }
 
 .holding-card {
@@ -759,9 +812,13 @@ svg {
   background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
   position: relative;
   z-index: 1;
-  transform: translateX(calc(var(--holding-swipe-offset, 0px) * -1));
-  transition: transform var(--motion-base) var(--ease-soft);
+  transform: translate3d(calc(var(--holding-swipe-offset, 0px) * -1), 0, 0);
+  transition:
+    transform 240ms var(--ease-soft),
+    box-shadow var(--motion-base) var(--ease-soft);
   will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .holding-head {
