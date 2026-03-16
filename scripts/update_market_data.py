@@ -381,8 +381,19 @@ def normalize_quote_entry(symbol, quote, stale_days):
 
 def merge_quote_snapshots(base_quotes, next_quotes, stale_days):
     merged = {**(base_quotes or {})}
+    dividend_keys = (
+        'dividendPerShareTtm', 'dividendSource', 'dividendUpdatedAt',
+        'lastExDate', 'dividendStatus', 'dividendFetchError'
+    )
     for symbol, next_quote in (next_quotes or {}).items():
-        merged[symbol] = {**(merged.get(symbol) or {}), **(next_quote or {})}
+        base = merged.get(symbol) or {}
+        combined = {**base, **(next_quote or {})}
+        # Preserve existing dividend fields when the incoming quote has none.
+        if not any(k in (next_quote or {}) for k in dividend_keys):
+            for k in dividend_keys:
+                if k in base:
+                    combined[k] = base[k]
+        merged[symbol] = combined
     return {
         symbol: normalize_quote_entry(symbol, quote, stale_days)
         for symbol, quote in merged.items()
@@ -607,8 +618,12 @@ def fetch_yfinance_snapshot(symbol, previous_quote, stale_days):
 
     history = ticker.history(period='10d', interval='1d', auto_adjust=False, actions=False)
     price = extract_latest_price(ticker, history)
+
+    # Price failure is no longer fatal — use cached price and still try to fetch dividends.
     if price <= 0:
-        raise ValueError(f'missing yfinance price for {symbol}')
+        price = safe_float(previous_quote.get('price'), 0.0)
+        if price <= 0:
+            print(f'warning: no price available for {symbol}, using 0')
 
     try:
         dividends = ticker.dividends
@@ -685,17 +700,28 @@ def main():
     quotes = seed_quotes_from_previous(previous_snapshot, watchlist, config['staleDays'])
     rates = {**DEFAULT_RATES, **(previous_snapshot.get('rates') or {})}
 
-    try:
-        fresh_quotes = fetch_yfinance_snapshots(watchlist, previous_quotes, config['staleDays'])
-        quotes = merge_quote_snapshots(quotes, fresh_quotes, config['staleDays'])
-    except Exception as error:
-        print(f'yfinance snapshot refresh skipped: {error}')
-
+    # Step 1: Fetch Tencent prices first — they serve as price fallback for yfinance.
     try:
         fresh_prices = fetch_with_retry('tencent quotes', fetch_quotes, watchlist, retries=3, delay_seconds=2)
         quotes = merge_quote_snapshots(quotes, fresh_prices, config['staleDays'])
     except Exception as error:
         print(f'tencent quote refresh skipped: {error}')
+
+    # Step 2: Fetch yfinance snapshots (dividends + price).
+    # If yfinance price fails, it falls back to cached/Tencent price from step 1.
+    try:
+        fresh_quotes = fetch_yfinance_snapshots(watchlist, quotes, config['staleDays'])
+        quotes = merge_quote_snapshots(quotes, fresh_quotes, config['staleDays'])
+    except Exception as error:
+        print(f'yfinance snapshot refresh skipped: {error}')
+
+    # Step 3: Refresh Tencent prices again so final output has the freshest prices.
+    # merge_quote_snapshots preserves dividend fields from step 2.
+    try:
+        final_prices = fetch_with_retry('tencent quotes final', fetch_quotes, watchlist, retries=2, delay_seconds=2)
+        quotes = merge_quote_snapshots(quotes, final_prices, config['staleDays'])
+    except Exception as error:
+        print(f'tencent final price refresh skipped: {error}')
 
     try:
         rates = fetch_with_retry('fx rates', fetch_rates, retries=3, delay_seconds=2)
