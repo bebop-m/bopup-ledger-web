@@ -1472,12 +1472,8 @@ function getHoldingSwipeOffset(wrapper) {
 function setHoldingSwipeOffset(wrapper, offset) {
   const clamped = Math.max(0, Math.min(HOLDING_SWIPE_DELETE_WIDTH, offset));
   wrapper.style.setProperty('--holding-swipe-offset', `${clamped}px`);
-  const card = wrapper.querySelector('.holding-card');
-  if (card) {
-    const radius = Math.round(18 * (1 - clamped / HOLDING_SWIPE_DELETE_WIDTH));
-    card.style.borderTopLeftRadius = `${radius}px`;
-    card.style.borderBottomLeftRadius = `${radius}px`;
-  }
+  const progress = clamped / HOLDING_SWIPE_DELETE_WIDTH;
+  wrapper.style.setProperty('--swipe-fade-opacity', progress);
 }
 
 function closeHoldingSwipe(wrapper) {
@@ -1486,11 +1482,6 @@ function closeHoldingSwipe(wrapper) {
   }
   wrapper.classList.remove('is-swipe-open');
   setHoldingSwipeOffset(wrapper, 0);
-  const card = wrapper.querySelector('.holding-card');
-  if (card) {
-    card.style.borderTopLeftRadius = '';
-    card.style.borderBottomLeftRadius = '';
-  }
   if (activeHoldingSwipe && activeHoldingSwipe.wrapper === wrapper) {
     activeHoldingSwipe = null;
   }

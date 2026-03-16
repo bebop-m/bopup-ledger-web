@@ -772,6 +772,24 @@ svg {
   border-radius: var(--radius-lg);
 }
 
+.holding-swipe::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 28px;
+  background: linear-gradient(to right, var(--bg-top) 0%, transparent 100%);
+  opacity: var(--swipe-fade-opacity, 0);
+  z-index: 2;
+  pointer-events: none;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+
+.holding-swipe.is-swipe-open::after {
+  transition: opacity var(--motion-base) var(--ease-soft);
+}
+
 .holding-swipe-delete {
   display: none;
   border-radius: 18px;
@@ -822,11 +840,6 @@ svg {
   overflow: hidden;
 }
 
-/* When swiped open, left edge becomes straight */
-.holding-swipe.is-swipe-open .holding-card {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
 
 .holding-head {
   justify-content: space-between;
