@@ -1,3 +1,27 @@
+/* ============================================================================
+ *  BOPUP LEDGER — 波普账本
+ *  Single-file architecture · Section index:
+ *
+ *  [1] CONSTANTS & CONFIGURATION
+ *  [2] UI FLAGS, LABELS & THEME
+ *  [3] DEFAULT DATA (quotes, holdings, rates)
+ *  [4] APPLICATION STATE & DOM REFS
+ *  [5] UTILITY FUNCTIONS
+ *  [6] DIVIDEND LOGIC
+ *  [7] SYMBOL & QUOTE HELPERS
+ *  [8] SNAPSHOT & PERSISTENCE
+ *  [9] COMPUTED DATA
+ *  [10] RENDER — Summary, Charts, Holdings, Modals
+ *  [11] SWIPE & INTERACTION HELPERS
+ *  [12] MODAL SYSTEM
+ *  [13] IMPORT / EXPORT
+ *  [14] NETWORK — Market data, Tencent realtime, Config
+ *  [15] BOOT & EVENT BINDINGS
+ * ============================================================================ */
+
+/* ----------------------------------------------------------------------------
+ *  [1] CONSTANTS & CONFIGURATION
+ * -------------------------------------------------------------------------- */
 const STORAGE_KEY = 'bopup-ledger-web-state';
 const MARKET_ENDPOINT = './data/market.json';
 const OVERRIDE_ENDPOINT = './data/override.json';
@@ -17,6 +41,9 @@ let activeHoldingSwipe = null;
 let activeDividendTooltipButton = null;
 let suppressHoldingClickUntil = 0;
 
+/* ----------------------------------------------------------------------------
+ *  [2] UI FLAGS, LABELS & THEME
+ * -------------------------------------------------------------------------- */
 // Each UI refinement block stays behind its own flag for quick rollback.
 const UI_FLAGS = {
   titleDotSeparator: true,
@@ -42,6 +69,9 @@ const BUCKET_CHIP_COMPACT_THRESHOLD = 0.16;
 const HOLDING_SWIPE_DELETE_WIDTH = 72;
 const HOLDING_SWIPE_OPEN_THRESHOLD = 34;
 
+/* ----------------------------------------------------------------------------
+ *  [3] DEFAULT DATA (quotes, holdings, rates)
+ * -------------------------------------------------------------------------- */
 const DEFAULT_RATES = {
   CNY: 1,
   USD: 7.22,
@@ -161,6 +191,9 @@ const DEFAULT_HOLDINGS = [
   { localId: 20, symbol: '600036.SH', quantity: 1200, bucket: 'income', taxRateOverride: '', dividendPerShareTtmOverride: '' }
 ];
 
+/* ----------------------------------------------------------------------------
+ *  [4] APPLICATION STATE & DOM REFS
+ * -------------------------------------------------------------------------- */
 const state = {
   holdings: [],
   quotes: {},
@@ -281,6 +314,9 @@ function configureUiChrome() {
   }
 }
 
+/* ----------------------------------------------------------------------------
+ *  [5] UTILITY FUNCTIONS
+ * -------------------------------------------------------------------------- */
 function roundTo(value, digits = 6) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
@@ -289,6 +325,9 @@ function roundTo(value, digits = 6) {
   return Number(numeric.toFixed(digits));
 }
 
+/* ----------------------------------------------------------------------------
+ *  [6] DIVIDEND LOGIC
+ * -------------------------------------------------------------------------- */
 function normalizeDividendSource(value, fallback = 'cache') {
   const source = String(value || '').trim().toLowerCase();
   return VALID_DIVIDEND_SOURCES.has(source) ? source : fallback;
@@ -597,6 +636,9 @@ function toggleDividendTooltip(button) {
   activeDividendTooltipButton = button;
 }
 
+/* ----------------------------------------------------------------------------
+ *  [7] SYMBOL & QUOTE HELPERS
+ * -------------------------------------------------------------------------- */
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -819,6 +861,9 @@ function resolveFxRateForCurrency(currency) {
   return 1;
 }
 
+/* ----------------------------------------------------------------------------
+ *  [8] SNAPSHOT & PERSISTENCE
+ * -------------------------------------------------------------------------- */
 function createDefaultSnapshot() {
   return {
     holdings: clone(DEFAULT_HOLDINGS),
@@ -934,6 +979,9 @@ function restoreState() {
   }
 }
 
+/* ----------------------------------------------------------------------------
+ *  [9] COMPUTED DATA
+ * -------------------------------------------------------------------------- */
 function computeHoldings() {
   const holdings = state.holdings.map((holding) => {
     const quote = inferQuote(holding.symbol);
@@ -1070,6 +1118,9 @@ function getBucketSummaryItems(holdings) {
     .filter((item) => item.marketValueCny > 0);
 }
 
+/* ----------------------------------------------------------------------------
+ *  [10] RENDER — Summary, Charts, Holdings
+ * -------------------------------------------------------------------------- */
 function renderSummary(summary) {
   const totalLabel = formatDisplayMoney(summary.netMarketValueCny, 'CNY');
   const dividendLabel = formatDisplayMoney(summary.totalDividendCny, 'CNY');
@@ -1366,6 +1417,9 @@ function renderHoldings(holdings) {
   }).join('');
 }
 
+/* ----------------------------------------------------------------------------
+ *  [11] SWIPE & INTERACTION HELPERS
+ * -------------------------------------------------------------------------- */
 function isHoldingSwipeEnabled() {
   return window.matchMedia('(max-width: 560px)').matches;
 }
@@ -1401,6 +1455,9 @@ function openHoldingSwipe(wrapper) {
   setHoldingSwipeOffset(wrapper, HOLDING_SWIPE_DELETE_WIDTH);
 }
 
+/* ----------------------------------------------------------------------------
+ *  [12] MODAL SYSTEM
+ * -------------------------------------------------------------------------- */
 function openModal(type, payload = {}) {
   state.modal = type;
   state.modalPayload = payload;
@@ -1558,6 +1615,9 @@ function handleModalSave() {
   renderApp();
 }
 
+/* ----------------------------------------------------------------------------
+ *  [13] IMPORT / EXPORT
+ * -------------------------------------------------------------------------- */
 function exportPortfolioSnapshot() {
   try {
     const payload = buildPortfolioSnapshot();
@@ -1613,6 +1673,9 @@ async function handleImportFile(event) {
   }
 }
 
+/* ----------------------------------------------------------------------------
+ *  [14] NETWORK — Market data, Tencent realtime, Config
+ * -------------------------------------------------------------------------- */
 function applyMarketPayload(payload) {
   if (payload && payload.rates) {
     state.rates = {
@@ -1910,6 +1973,9 @@ async function cleanupLegacyCaches() {
   }
 }
 
+/* ----------------------------------------------------------------------------
+ *  [15] BOOT & EVENT BINDINGS
+ * -------------------------------------------------------------------------- */
 function renderApp() {
   const summary = computeHoldings();
   const companySegments = getCompanySegments(summary.holdings);
