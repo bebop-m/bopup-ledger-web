@@ -472,7 +472,7 @@ function getDividendSourceLabel(source) {
     return 'EODHD';
   }
   if (key === 'cache') {
-    return 'Cache';
+    return '沿用缓存';
   }
   return 'Yahoo';
 }
