@@ -290,9 +290,7 @@ function configureUiChrome() {
   refs.exportButton.title = '\u540c\u6b65\u5230\u4e91\u7aef';
   refs.exportButton.innerHTML = `
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 16V8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
-      <path d="M8.6 11.3L12 7.9l3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
-      <path d="M20 17.6a3.4 3.4 0 0 0-1.8-6.3h-.6A6 6 0 0 0 6.2 9.8a4.2 4.2 0 0 0 .4 8.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path d="M20 17a3.5 3.5 0 0 0-1.6-6.4h-.5A6.2 6.2 0 0 0 6 9.6 4.4 4.4 0 0 0 6.5 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
     </svg>
   `;
   refs.privacyButton.classList.remove('circle-button');
@@ -1403,7 +1401,7 @@ function renderHoldings(holdings) {
           <button class="metric-button metric-right" type="button" data-action="edit-quantity">
             <div class="metric-row metric-right">
               <span class="metric-label">${LABELS.quantity}</span>
-              <span class="metric-value">${escapeHtml(String(item.quantity))}</span>
+              <span class="metric-value">${state.showAmounts ? escapeHtml(String(item.quantity)) : MASK_AMOUNT}</span>
             </div>
           </button>
           <button class="metric-button" type="button" data-action="edit-tax">
