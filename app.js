@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = 'bopup-ledger-web-state';
+const STORAGE_KEY = 'bopup-ledger-web-state';
 const MARKET_ENDPOINT = './data/market.json';
 const OVERRIDE_ENDPOINT = './data/override.json';
 const CONFIG_ENDPOINT = './config.json';
@@ -634,11 +634,7 @@ function normalizeSymbol(rawSymbol) {
 }
 
 function chunkItems(items, size) {
-  const chunks = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
+  return chunkSymbols(items, size);
 }
 
 function inferQuoteFromMap(symbol, quoteMap = {}) {
