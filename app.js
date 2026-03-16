@@ -1247,11 +1247,10 @@ function renderSortChips() {
   if (refs.sortGroup) {
     refs.sortGroup.classList.toggle('sort-group--subtle', UI_FLAGS.subtleSortControls);
     refs.sortGroup.dataset.open = state.sortMenuOpen ? 'true' : 'false';
-    refs.sortGroup.hidden = false;
-    refs.sortGroup.setAttribute('aria-hidden', UI_FLAGS.subtleSortControls && !state.sortMenuOpen ? 'true' : 'false');
+    refs.sortGroup.hidden = UI_FLAGS.subtleSortControls ? !state.sortMenuOpen : false;
   }
   if (sortToggleButton) {
-    sortToggleButton.hidden = !UI_FLAGS.subtleSortControls;
+    sortToggleButton.hidden = !UI_FLAGS.subtleSortControls || state.sortMenuOpen;
     sortToggleButton.classList.toggle('is-active', state.sortMenuOpen);
     sortToggleButton.setAttribute('aria-expanded', state.sortMenuOpen ? 'true' : 'false');
     sortToggleButton.title = `${UI_TEXT.sort} \u00b7 ${state.sortField === 'effectiveYield' ? LABELS.sortDividendYield : LABELS.sortMarketValue}`;
@@ -1269,18 +1268,14 @@ function renderSortChips() {
         </svg>
       `;
   }
-  refs.sortChips.forEach((chip, index) => {
+  refs.sortChips.forEach((chip) => {
     const field = chip.dataset.sortField;
     const isActive = field === state.sortField;
     const label = field === 'effectiveYield' ? LABELS.sortDividendYield : LABELS.sortMarketValue;
     const arrow = isActive ? (state.sortDirection === 'desc' ? '\u2193' : '\u2191') : '';
-    const isInteractive = !UI_FLAGS.subtleSortControls || state.sortMenuOpen;
     chip.classList.toggle('is-active', isActive);
-    chip.hidden = false;
+    chip.hidden = UI_FLAGS.subtleSortControls ? !state.sortMenuOpen : false;
     chip.classList.toggle('is-subtle-primary', false);
-    chip.style.transitionDelay = isInteractive && UI_FLAGS.subtleSortControls ? `${index * 30}ms` : '0ms';
-    chip.tabIndex = isInteractive ? 0 : -1;
-    chip.setAttribute('aria-hidden', isInteractive ? 'false' : 'true');
     chip.textContent = arrow ? `${label} ${arrow}` : label;
   });
 }
@@ -1304,7 +1299,6 @@ function renderHoldings(holdings) {
     const priceText = state.showAmounts ? formatPlainPrice(item.price) : MASK_PRICE;
     const marketValueText = state.showAmounts ? formatMoney(item.marketValueCny, 'CNY') : MASK_AMOUNT;
     const annualDividendText = state.showAmounts ? formatMoney(item.netAnnualDividendCny, 'CNY') : MASK_AMOUNT;
-    const quantityText = state.showAmounts ? escapeHtml(String(item.quantity)) : MASK_AMOUNT;
     const weightText = `${(item.holdingWeight * 100).toFixed(1)}%`;
     const statusKey = normalizeDividendStatus(item.dividendStatus, 'missing');
     const tooltipLines = buildDividendTooltipLines(item);
@@ -1354,7 +1348,7 @@ function renderHoldings(holdings) {
           <button class="metric-button metric-right" type="button" data-action="edit-quantity">
             <div class="metric-row metric-right">
               <span class="metric-label">${LABELS.quantity}</span>
-              <span class="metric-value">${quantityText}</span>
+              <span class="metric-value">${escapeHtml(String(item.quantity))}</span>
             </div>
           </button>
           <button class="metric-button" type="button" data-action="edit-tax">
