@@ -14,6 +14,8 @@ const VALID_DIVIDEND_SOURCES = new Set(['yahoo', 'eodhd', 'manual', 'cache']);
 const VALID_DIVIDEND_STATUSES = new Set(['manual', 'fresh', 'stale', 'missing']);
 let currentDividendStaleDays = DEFAULT_STALE_DAYS;
 let activeHoldingSwipe = null;
+let activeDividendTooltipButton = null;
+let suppressHoldingClickUntil = 0;
 
 // Each UI refinement block stays behind its own flag for quick rollback.
 const UI_FLAGS = {
@@ -526,6 +528,34 @@ function updateDividendTooltipSide(button) {
   const leftSpace = rect.left;
   const side = rightSpace >= fallbackWidth + 16 || rightSpace >= leftSpace ? 'right' : 'left';
   button.dataset.tooltipSide = side;
+}
+
+function closeActiveDividendTooltip(force = false) {
+  if (!activeDividendTooltipButton) {
+    return;
+  }
+  if (!force && document.activeElement === activeDividendTooltipButton) {
+    return;
+  }
+  activeDividendTooltipButton.classList.remove('is-tooltip-open');
+  activeDividendTooltipButton.setAttribute('aria-expanded', 'false');
+  activeDividendTooltipButton.blur();
+  activeDividendTooltipButton = null;
+}
+
+function toggleDividendTooltip(button) {
+  if (!button || !button.classList.contains('dividend-status-button--value')) {
+    return;
+  }
+  if (activeDividendTooltipButton === button) {
+    closeActiveDividendTooltip(true);
+    return;
+  }
+  closeActiveDividendTooltip(true);
+  updateDividendTooltipSide(button);
+  button.classList.add('is-tooltip-open');
+  button.setAttribute('aria-expanded', 'true');
+  activeDividendTooltipButton = button;
 }
 
 function escapeHtml(value) {
@@ -1255,6 +1285,7 @@ function renderPrivacyButton() {
 }
 
 function renderHoldings(holdings) {
+  activeDividendTooltipButton = null;
   if (!holdings.length) {
     refs.stockList.innerHTML = '<article class="holding-card empty-card"></article>';
     return;
@@ -1274,6 +1305,7 @@ function renderHoldings(holdings) {
         class="dividend-status-button dividend-status-button--value is-${statusKey}"
         type="button"
         aria-label="${escapeHtml(statusLabel)}"
+        aria-expanded="false"
         title="${escapeHtml(tooltipLines.join('\n'))}"
         data-tooltip-side="left"
       >
@@ -1987,6 +2019,16 @@ document.addEventListener('click', (event) => {
   renderSortChips();
 });
 
+document.addEventListener('click', (event) => {
+  if (!activeDividendTooltipButton) {
+    return;
+  }
+  if (event.target.closest('.dividend-status-button--value') === activeDividendTooltipButton) {
+    return;
+  }
+  closeActiveDividendTooltip(true);
+});
+
 refs.bucketTrack.addEventListener('click', (event) => {
   if (!UI_FLAGS.bucketSummaryV2) {
     return;
@@ -2027,8 +2069,19 @@ refs.summaryGrid.addEventListener('click', (event) => {
 });
 
 refs.stockList.addEventListener('click', (event) => {
+  if (Date.now() < suppressHoldingClickUntil) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   const tooltipButton = event.target.closest('.dividend-status-button');
   if (tooltipButton) {
+    if (tooltipButton.classList.contains('dividend-status-button--value')) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleDividendTooltip(tooltipButton);
+      return;
+    }
     updateDividendTooltipSide(tooltipButton);
   }
   const button = event.target.closest('[data-action]');
@@ -2085,7 +2138,7 @@ refs.stockList.addEventListener('click', (event) => {
 });
 
 refs.stockList.addEventListener('touchstart', (event) => {
-  if (!isHoldingSwipeEnabled() || event.touches.length !== 1 || event.target.closest('button')) {
+  if (!isHoldingSwipeEnabled() || event.touches.length !== 1) {
     return;
   }
   const wrapper = event.target.closest('.holding-swipe');
@@ -2103,7 +2156,8 @@ refs.stockList.addEventListener('touchstart', (event) => {
     startX: touch.clientX,
     startY: touch.clientY,
     startOffset: getHoldingSwipeOffset(wrapper),
-    dragging: false
+    dragging: false,
+    didSwipe: false
   };
 }, { passive: true });
 
@@ -2124,6 +2178,7 @@ refs.stockList.addEventListener('touchmove', (event) => {
       return;
     }
     activeHoldingSwipe.dragging = true;
+    activeHoldingSwipe.didSwipe = true;
   }
 
   event.preventDefault();
@@ -2135,6 +2190,9 @@ function settleHoldingSwipe() {
     return;
   }
   const wrapper = activeHoldingSwipe.wrapper;
+  if (activeHoldingSwipe.didSwipe) {
+    suppressHoldingClickUntil = Date.now() + 280;
+  }
   const shouldOpen = activeHoldingSwipe.dragging && getHoldingSwipeOffset(wrapper) >= HOLDING_SWIPE_OPEN_THRESHOLD;
   if (shouldOpen) {
     openHoldingSwipe(wrapper);
