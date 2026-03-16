@@ -1,7 +1,7 @@
 {
   "type": "portfolio-snapshot",
   "version": 1,
-  "updatedAt": "2026-03-16T10:54:37.110Z",
+  "updatedAt": "2026-03-16T15:52:39.919Z",
   "holdings": [
     {
       "localId": 1,
@@ -241,5 +241,5 @@
   "sortDirection": "desc",
   "legendExpanded": false,
   "liabilityCny": 81745.48,
-  "lastUpdatedAt": "2026-03-16T09:16:32.189978Z"
+  "lastUpdatedAt": "2026-03-16T12:06:38.234312Z"
 }
