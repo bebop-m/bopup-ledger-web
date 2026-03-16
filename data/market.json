@@ -1,12 +1,11 @@
 {
   "ok": true,
   "provider": {
-    "quote": "tencent-finance",
+    "quote": "yahoo-finance",
     "fx": "frankfurter",
-    "dividend": "yfinance",
-    "dividendVerify": "disabled"
+    "dividend": "yahoo-finance"
   },
-  "updatedAt": "2026-03-16T06:26:19.873346Z",
+  "updatedAt": "2026-03-14T15:53:09.518487Z",
   "rates": {
     "CNY": 1,
     "USD": 6.8966,
@@ -15,279 +14,188 @@
   "quotes": {
     "AAPL": {
       "symbol": "AAPL",
-      "name": "苹果",
+      "name": "Apple",
       "market": "US",
       "currency": "USD",
-      "price": 250.12,
-      "dividendPerShareTtm": 1.04,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:06.431043Z",
-      "lastExDate": "2026-02-09",
-      "dividendStatus": "fresh"
+      "price": 213.4
     },
     "MSFT": {
       "symbol": "MSFT",
-      "name": "微软",
+      "name": "Microsoft",
       "market": "US",
       "currency": "USD",
-      "price": 395.55,
-      "dividendPerShareTtm": 3.48,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:06.907265Z",
-      "lastExDate": "2026-02-19",
-      "dividendStatus": "fresh"
+      "price": 419.15
     },
     "KO": {
       "symbol": "KO",
-      "name": "可口可乐",
+      "name": "Coca-Cola",
       "market": "US",
       "currency": "USD",
-      "price": 77.34,
-      "dividendPerShareTtm": 2.06,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:07.766699Z",
-      "lastExDate": "2026-03-13",
-      "dividendStatus": "fresh"
+      "price": 68.22
     },
     "JNJ": {
       "symbol": "JNJ",
-      "name": "强生",
+      "name": "Johnson & Johnson",
       "market": "US",
       "currency": "USD",
-      "price": 241.52,
-      "dividendPerShareTtm": 5.2,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:08.571124Z",
-      "lastExDate": "2026-02-24",
-      "dividendStatus": "fresh"
+      "price": 162.35
     },
     "PG": {
       "symbol": "PG",
-      "name": "宝洁",
+      "name": "P&G",
       "market": "US",
       "currency": "USD",
-      "price": 150.65,
-      "dividendPerShareTtm": 4.228,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:09.521775Z",
-      "lastExDate": "2026-01-23",
-      "dividendStatus": "fresh"
+      "price": 171.28
     },
     "PEP": {
       "symbol": "PEP",
-      "name": "百事可乐",
+      "name": "PepsiCo",
       "market": "US",
       "currency": "USD",
-      "price": 159.88,
-      "dividendPerShareTtm": 5.692,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:10.362556Z",
-      "lastExDate": "2026-03-06",
-      "dividendStatus": "fresh"
+      "price": 174.06
     },
     "MCD": {
       "symbol": "MCD",
-      "name": "麦当劳",
+      "name": "McDonald's",
       "market": "US",
       "currency": "USD",
-      "price": 326.46,
-      "dividendPerShareTtm": 7.26,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:11.141666Z",
-      "lastExDate": "2026-03-03",
-      "dividendStatus": "fresh"
+      "price": 301.42
     },
     "O": {
       "symbol": "O",
-      "name": "Realty Income Corporation",
+      "name": "Realty Income",
       "market": "US",
       "currency": "USD",
-      "price": 64.44,
-      "dividendPerShareTtm": 3.234,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:11.695156Z",
-      "lastExDate": "2026-02-27",
-      "dividendStatus": "fresh"
+      "price": 54.1
     },
     "VZ": {
       "symbol": "VZ",
-      "name": "威瑞森通信",
+      "name": "Verizon",
       "market": "US",
       "currency": "USD",
-      "price": 51.38,
-      "dividendPerShareTtm": 2.736,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:12.282218Z",
-      "lastExDate": "2026-01-12",
-      "dividendStatus": "fresh"
+      "price": 41.26
     },
     "XOM": {
       "symbol": "XOM",
-      "name": "埃克森美孚",
+      "name": "Exxon Mobil",
       "market": "US",
       "currency": "USD",
-      "price": 156.12,
-      "dividendPerShareTtm": 4.04,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:13.102939Z",
-      "lastExDate": "2026-02-12",
-      "dividendStatus": "fresh"
+      "price": 109.74
     },
     "CVX": {
       "symbol": "CVX",
-      "name": "雪佛龙",
+      "name": "Chevron",
       "market": "US",
       "currency": "USD",
-      "price": 196.82,
-      "dividendPerShareTtm": 6.91,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:13.930150Z",
-      "lastExDate": "2026-02-17",
-      "dividendStatus": "fresh"
+      "price": 154.32
     },
     "00700.HK": {
       "symbol": "00700.HK",
       "name": "腾讯控股",
       "market": "HK",
       "currency": "HKD",
-      "price": 563.5,
+      "price": 389.6,
       "dividendPerShareTtm": 4.5,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:14.300634Z",
-      "lastExDate": "2025-05-15",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.01155
     },
     "00941.HK": {
       "symbol": "00941.HK",
       "name": "中国移动",
       "market": "HK",
       "currency": "HKD",
-      "price": 80.1,
+      "price": 77.15,
       "dividendPerShareTtm": 5.24,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:14.719963Z",
-      "lastExDate": "2025-08-31",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.06792
     },
     "01398.HK": {
       "symbol": "01398.HK",
       "name": "工商银行",
       "market": "HK",
       "currency": "HKD",
-      "price": 6.42,
+      "price": 4.33,
       "dividendPerShareTtm": 0.336134,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:15.039927Z",
-      "lastExDate": "2025-12-03",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.077629
     },
     "00883.HK": {
       "symbol": "00883.HK",
       "name": "中国海洋石油",
       "market": "HK",
       "currency": "HKD",
-      "price": 28.78,
+      "price": 18.42,
       "dividendPerShareTtm": 1.39,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:15.440396Z",
-      "lastExDate": "2025-09-10",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.075461
     },
     "00005.HK": {
       "symbol": "00005.HK",
       "name": "汇丰控股",
       "market": "HK",
       "currency": "HKD",
-      "price": 125.0,
-      "dividendPerShareTtm": 5.862584,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:15.918116Z",
-      "lastExDate": "2026-03-11",
-      "dividendStatus": "fresh"
+      "price": 68.35,
+      "dividendPerShareTtm": 5.861297,
+      "dividendYield": 0.085754
     },
     "00388.HK": {
       "symbol": "00388.HK",
       "name": "香港交易所",
       "market": "HK",
       "currency": "HKD",
-      "price": 406.8,
+      "price": 256.2,
       "dividendPerShareTtm": 12.52,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:16.337897Z",
-      "lastExDate": "2026-03-10",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.048868
     },
     "600519.SH": {
       "symbol": "600519.SH",
       "name": "贵州茅台",
       "market": "CN",
       "currency": "CNY",
-      "price": 1457.1,
+      "price": 1688,
       "dividendPerShareTtm": 51.63,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:16.738598Z",
-      "lastExDate": "2025-12-18",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.030586
     },
     "601318.SH": {
       "symbol": "601318.SH",
       "name": "中国平安",
       "market": "CN",
       "currency": "CNY",
-      "price": 60.36,
+      "price": 46.22,
       "dividendPerShareTtm": 2.57,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:17.085103Z",
-      "lastExDate": "2025-10-23",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.055604
     },
     "600036.SH": {
       "symbol": "600036.SH",
       "name": "招商银行",
       "market": "CN",
       "currency": "CNY",
-      "price": 39.91,
+      "price": 34.58,
       "dividendPerShareTtm": 3.013,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:17.516560Z",
-      "lastExDate": "2026-01-15",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.087131
     },
     "600900.SH": {
       "symbol": "600900.SH",
       "name": "长江电力",
       "market": "CN",
       "currency": "CNY",
-      "price": 27.33,
+      "price": 28.41,
       "dividendPerShareTtm": 0.943,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:17.919992Z",
-      "lastExDate": "2026-02-11",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.033193
     },
     "000651.SZ": {
       "symbol": "000651.SZ",
       "name": "格力电器",
       "market": "CN",
       "currency": "CNY",
-      "price": 38.82,
+      "price": 41.86,
       "dividendPerShareTtm": 4.0,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:18.366453Z",
-      "lastExDate": "2026-01-22",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.095557
     },
     "300750.SZ": {
       "symbol": "300750.SZ",
       "name": "宁德时代",
       "market": "CN",
       "currency": "CNY",
-      "price": 408.98,
+      "price": 192.65,
       "dividendPerShareTtm": 5.56,
-      "dividendSource": "yfinance",
-      "dividendUpdatedAt": "2026-03-16T06:26:18.599196Z",
-      "lastExDate": "2025-08-19",
-      "dividendStatus": "fresh"
+      "dividendYield": 0.028861
     }
   }
 }
