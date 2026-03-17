@@ -1533,6 +1533,36 @@ function renderHoldings(holdings, options = {}) {
   }).join('');
 }
 
+function syncRenderedHoldings(holdings) {
+  if (!holdings.length) {
+    refs.stockList.innerHTML = '<article class="holding-card empty-card"></article>';
+    activeDividendTooltipButton = null;
+    return;
+  }
+
+  const wrappers = Array.from(refs.stockList.querySelectorAll('.holding-swipe[data-id]'));
+  const currentIds = wrappers.map((wrapper) => safeNumber(wrapper.dataset.id, 0));
+  const nextIds = holdings.map((item) => item.localId);
+  const needsFullRender = currentIds.length !== nextIds.length
+    || currentIds.some((id, index) => id !== nextIds[index]);
+
+  if (needsFullRender) {
+    renderHoldings(holdings, { animate: false });
+    return;
+  }
+
+  holdings.forEach((item, index) => {
+    const wrapper = wrappers[index];
+    if (!wrapper) {
+      return;
+    }
+    const weightPill = wrapper.querySelector('.weight-pill');
+    if (weightPill) {
+      weightPill.textContent = `${(item.holdingWeight * 100).toFixed(1)}%`;
+    }
+  });
+}
+
 /* ----------------------------------------------------------------------------
  *  [11] SWIPE & INTERACTION HELPERS
  * -------------------------------------------------------------------------- */
@@ -2538,7 +2568,8 @@ function renderApp(options = {}) {
   const {
     animateLegend = true,
     animateBucketDetail = true,
-    animateHoldings = true
+    animateHoldings = true,
+    renderHoldingsList = true
   } = options;
   const summary = computeHoldings();
   const companySegments = getCompanySegments(summary.holdings);
@@ -2558,7 +2589,11 @@ function renderApp(options = {}) {
   renderSortChips();
   renderTimestamp();
   renderPrivacyButton();
-  renderHoldings(summary.holdings, { animate: animateHoldings });
+  if (renderHoldingsList) {
+    renderHoldings(summary.holdings, { animate: animateHoldings });
+  } else {
+    syncRenderedHoldings(summary.holdings);
+  }
 }
 
 configureUiChrome();
@@ -2733,12 +2768,17 @@ refs.stockList.addEventListener('click', (event) => {
       const wrapper = refs.stockList.querySelector(`.holding-swipe[data-id="${localId}"]`);
       if (wrapper) {
         animateHoldingRemoval(wrapper, () => {
+          if (activeDividendTooltipButton && wrapper.contains(activeDividendTooltipButton)) {
+            activeDividendTooltipButton = null;
+          }
+          wrapper.remove();
           state.holdings = state.holdings.filter((item) => item.localId !== localId);
           saveState();
           renderApp({
             animateLegend: false,
             animateBucketDetail: false,
-            animateHoldings: false
+            animateHoldings: false,
+            renderHoldingsList: false
           });
         });
       } else {
@@ -2747,7 +2787,8 @@ refs.stockList.addEventListener('click', (event) => {
         renderApp({
           animateLegend: false,
           animateBucketDetail: false,
-          animateHoldings: false
+          animateHoldings: false,
+          renderHoldingsList: false
         });
       }
     });
