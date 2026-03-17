@@ -1,4 +1,4 @@
-# 波普账本 Bopup Ledger
+# 波普账本 Bebop Ledger
 
 一个面向移动端的纯静态股息账本。前端负责持仓管理、收益计算和展示；行情、股息和汇率通过 GitHub Actions 生成 `data/market.json`；页面本身托管在 GitHub Pages。
 
