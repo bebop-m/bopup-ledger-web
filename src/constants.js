@@ -13,7 +13,7 @@ export const GITHUB_MARKET_WORKFLOW_DISPATCH_API = `https://api.github.com/repos
 export const GITHUB_TOKEN_STORAGE_KEY = 'bebop-ledger-github-token-v2';
 export const TENCENT_REALTIME_ENDPOINT = 'https://qt.gtimg.cn/q=';
 export const TENCENT_BATCH_SIZE = 60;
-export const LEGEND_COLLAPSED_COUNT = 8;
+export const LEGEND_COLLAPSED_COUNT = 5;
 export const LEGEND_TOGGLE_ANIMATION_MS = 220;
 export const MASK_AMOUNT = '******';
 export const MASK_PRICE = '***.**';
@@ -41,7 +41,7 @@ export const UI_TEXT = {
   overallAverageNetYield: '\u6574\u4f53\u5e73\u5747\u7a0e\u540e\u80a1\u606f\u7387',
   overallYieldCompact: '\u80a1\u606f\u7387'
 };
-export const ALLOCATION_LEGEND_MIN_WEIGHT = 0.05;
+
 export const BUCKET_CHIP_COMPACT_THRESHOLD = 0.16;
 export const HOLDING_SWIPE_DELETE_WIDTH = 72;
 export const HOLDING_SWIPE_OPEN_THRESHOLD = 34;

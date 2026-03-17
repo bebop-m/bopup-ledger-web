@@ -6,7 +6,7 @@ import {
   buildDividendTooltipLines, buildDividendTooltipHtml, createElementFromHtml
 } from './utils.js';
 import {
-  MASK_AMOUNT, MASK_PRICE, LABELS, UI_TEXT, ALLOCATION_LEGEND_MIN_WEIGHT,
+  MASK_AMOUNT, MASK_PRICE, LABELS, UI_TEXT,
   LEGEND_COLLAPSED_COUNT, LEGEND_TOGGLE_ANIMATION_MS, LEGEND_ENTER_STAGGER_MS,
   HOLDING_ENTER_STAGGER_MS, HOLDING_ENTER_STAGGER_MAX_MS, TOOLTIP_FALLBACK_WIDTH,
   TOOLTIP_GAP, BUCKET_CHIP_COMPACT_THRESHOLD, HOLDING_REMOVAL_FALLBACK_MS,
@@ -121,8 +121,7 @@ function getLegendSegmentKey(seg, i) {
 
 function getLegendViewModel(segments) {
   const total = segments.reduce((s, i) => s + i.value, 0) || 1;
-  const vis = segments.filter((s) => s.value / total >= ALLOCATION_LEGEND_MIN_WEIGHT);
-  const cc = (vis.length ? vis : segments.slice(0, LEGEND_COLLAPSED_COUNT)).length;
+  const cc = Math.min(segments.length, LEGEND_COLLAPSED_COUNT);
   return { total, collapsedCount: cc, canToggleLegend: cc < segments.length };
 }
 
