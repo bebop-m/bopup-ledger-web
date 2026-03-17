@@ -620,7 +620,11 @@ def fetch_yfinance_snapshot(symbol, previous_quote, stale_days):
     previous_quote = normalize_quote_entry(symbol, previous_quote or {}, stale_days)
     ticker = yf.Ticker(to_yfinance_symbol(symbol))
 
-    history = ticker.history(period='10d', interval='1d', auto_adjust=False, actions=False)
+    history = None
+    try:
+        history = ticker.history(period='10d', interval='1d', auto_adjust=False, actions=False)
+    except Exception as error:
+        print(f'yfinance price history skipped for {symbol}: {error}')
     price = extract_latest_price(ticker, history)
 
     # Price failure is no longer fatal — use cached price and still try to fetch dividends.
@@ -629,10 +633,13 @@ def fetch_yfinance_snapshot(symbol, previous_quote, stale_days):
         if price <= 0:
             print(f'warning: no price available for {symbol}, using 0')
 
+    dividend_fetch_error = ''
     try:
         dividends = ticker.dividends
-    except Exception:
+    except Exception as error:
         dividends = None
+        dividend_fetch_error = str(error).strip()
+        print(f'yfinance dividends skipped for {symbol}: {error}')
 
     market, _ = infer_market_currency(symbol)
     quote = {
@@ -642,13 +649,23 @@ def fetch_yfinance_snapshot(symbol, previous_quote, stale_days):
         'currency': resolve_currency(ticker, symbol),
         'price': price
     }
-    quote.update(build_dividend_payload(
-        dividend_per_share_ttm=sum_ttm_dividends_from_series(dividends),
-        dividend_source='yfinance',
-        dividend_updated_at=utc_now_iso(),
-        last_ex_date=latest_ex_date_from_series(dividends),
-        stale_days=stale_days
-    ))
+    if dividend_fetch_error:
+        quote.update(build_dividend_payload(
+            dividend_per_share_ttm=previous_quote.get('dividendPerShareTtm'),
+            dividend_source='cache',
+            dividend_updated_at=previous_quote.get('dividendUpdatedAt'),
+            last_ex_date=previous_quote.get('lastExDate'),
+            stale_days=stale_days,
+            dividend_fetch_error=dividend_fetch_error
+        ))
+    else:
+        quote.update(build_dividend_payload(
+            dividend_per_share_ttm=sum_ttm_dividends_from_series(dividends),
+            dividend_source='yfinance',
+            dividend_updated_at=utc_now_iso(),
+            last_ex_date=latest_ex_date_from_series(dividends),
+            stale_days=stale_days
+        ))
     return normalize_quote_entry(symbol, quote, stale_days)
 
 

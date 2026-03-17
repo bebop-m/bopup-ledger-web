@@ -143,6 +143,7 @@ const LABELS = {
   dividendSource: '\u6570\u636e\u6765\u6e90',
   dividendUpdatedAt: '\u6700\u8fd1\u66f4\u65b0',
   lastExDate: '\u6700\u8fd1\u9664\u606f\u65e5',
+  dividendFetchError: '\u6293\u53d6\u9519\u8bef',
   dividendStatusManual: '\u624b\u52a8\u8986\u76d6',
   dividendStatusFresh: '\u5df2\u66f4\u65b0',
   dividendStatusStale: '\u7f13\u5b58',
@@ -663,6 +664,15 @@ function buildDividendTooltipLines(item) {
   const lastExDate = formatDateLabel(item.lastExDate);
   if (lastExDate) {
     lines.push(`${LABELS.lastExDate}：${lastExDate}`);
+  }
+  const fetchError = typeof item.dividendFetchError === 'string'
+    ? item.dividendFetchError.trim()
+    : '';
+  if (fetchError) {
+    const errorText = fetchError.length > 160
+      ? `${fetchError.slice(0, 157)}...`
+      : fetchError;
+    lines.push(`${LABELS.dividendFetchError}：${errorText}`);
   }
   return lines;
 }
