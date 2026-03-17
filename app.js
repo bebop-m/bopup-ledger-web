@@ -1164,6 +1164,7 @@ function getCompanySegments(holdings) {
     .filter((item) => safeNumber(item.marketValueCny, 0) > 0)
     .sort((left, right) => safeNumber(right.marketValueCny, 0) - safeNumber(left.marketValueCny, 0))
     .map((item, index) => ({
+      key: String(item.localId),
       label: item.name,
       value: safeNumber(item.marketValueCny, 0),
       color: COMPANY_COLORS[index % COMPANY_COLORS.length]
@@ -1561,6 +1562,687 @@ function syncRenderedHoldings(holdings) {
       weightPill.textContent = `${(item.holdingWeight * 100).toFixed(1)}%`;
     }
   });
+}
+
+function createElementFromHtml(markup) {
+  const template = document.createElement('template');
+  template.innerHTML = String(markup || '').trim();
+  return template.content.firstElementChild;
+}
+
+function getSummaryViewModel(summary) {
+  const overallAverageNetYield = summary.totalMarketValueCny > 0
+    ? summary.totalDividendCny / summary.totalMarketValueCny
+    : 0;
+  const dailyPnl = safeNumber(summary.totalDailyPnlCny, 0);
+  const hasPnlData = summary.holdings.some((holding) => safeNumber(holding.previousClose, 0) > 0);
+
+  return {
+    totalLabel: formatDisplayMoney(summary.netMarketValueCny, 'CNY'),
+    dividendLabel: formatDisplayMoney(summary.totalDividendCny, 'CNY'),
+    dailyPnlText: hasPnlData && state.showAmounts
+      ? formatDailyPnl(dailyPnl, summary.totalMarketValueCny)
+      : '',
+    overallYieldText: `${UI_TEXT.overallYieldCompact} ${formatPercent(overallAverageNetYield)}`,
+    usdRateCompactText: `USD/CNY ${safeNumber(state.rates.USD, 0).toFixed(2)}`,
+    hkdRateCompactText: `HKD/CNY ${safeNumber(state.rates.HKD, 0).toFixed(4)}`,
+    usdRateText: `1 USD = ${safeNumber(state.rates.USD, 0).toFixed(2)} CNY`,
+    hkdRateText: `1 HKD = ${safeNumber(state.rates.HKD, 0).toFixed(4)} CNY`
+  };
+}
+
+function getSummaryMainCardsMarkup(view) {
+  return `
+    <article class="summary-card">
+      <div class="summary-top">
+        <span class="summary-label">${LABELS.totalMarketValue}</span>
+        <button class="ghost-minus" type="button" data-summary-action="liability" aria-label="${LABELS.liability}">-</button>
+      </div>
+      <div class="summary-value" data-summary-field="totalValue">${escapeHtml(view.totalLabel)}</div>
+      <p class="summary-note" data-summary-field="dailyPnl"${view.dailyPnlText ? '' : ' hidden'}>${escapeHtml(view.dailyPnlText)}</p>
+    </article>
+    <article class="summary-card">
+      <div class="summary-label">${LABELS.totalDividend}</div>
+      <div class="summary-value is-income" data-summary-field="dividendValue">${escapeHtml(view.dividendLabel)}</div>
+      ${UI_FLAGS.summaryOverallYieldNote
+        ? `<p class="summary-note summary-note--yield" data-summary-field="overallYield">${escapeHtml(view.overallYieldText)}</p>`
+        : ''}
+    </article>
+  `;
+}
+
+function renderSummaryView(summary) {
+  const view = getSummaryViewModel(summary);
+  refs.summaryGrid.classList.toggle('summary-grid--compact-fx', UI_FLAGS.compactFxSummary);
+  refs.summaryGrid.innerHTML = UI_FLAGS.compactFxSummary
+    ? `
+      <div class="summary-grid-main">
+        ${getSummaryMainCardsMarkup(view)}
+      </div>
+      <div class="summary-fx-strip" aria-label="${LABELS.usdRate} / ${LABELS.hkdRate}">
+        <span class="summary-fx-item" data-summary-field="usdRate">${escapeHtml(view.usdRateCompactText)}</span>
+        <span class="summary-fx-divider">\u00b7</span>
+        <span class="summary-fx-item" data-summary-field="hkdRate">${escapeHtml(view.hkdRateCompactText)}</span>
+      </div>
+    `
+    : `
+      ${getSummaryMainCardsMarkup(view)}
+      <article class="summary-card">
+        <div class="summary-label">${LABELS.usdRate}</div>
+        <p class="summary-note" data-summary-field="usdRate">${escapeHtml(view.usdRateText)}</p>
+      </article>
+      <article class="summary-card">
+        <div class="summary-label">${LABELS.hkdRate}</div>
+        <p class="summary-note" data-summary-field="hkdRate">${escapeHtml(view.hkdRateText)}</p>
+      </article>
+    `;
+}
+
+function patchSummaryView(summary) {
+  const isCompact = refs.summaryGrid.classList.contains('summary-grid--compact-fx');
+  if (!refs.summaryGrid.children.length || isCompact !== UI_FLAGS.compactFxSummary) {
+    renderSummaryView(summary);
+    return;
+  }
+
+  const totalValue = refs.summaryGrid.querySelector('[data-summary-field="totalValue"]');
+  const dailyPnl = refs.summaryGrid.querySelector('[data-summary-field="dailyPnl"]');
+  const dividendValue = refs.summaryGrid.querySelector('[data-summary-field="dividendValue"]');
+  const usdRate = refs.summaryGrid.querySelector('[data-summary-field="usdRate"]');
+  const hkdRate = refs.summaryGrid.querySelector('[data-summary-field="hkdRate"]');
+  const overallYield = refs.summaryGrid.querySelector('[data-summary-field="overallYield"]');
+
+  if (!totalValue || !dailyPnl || !dividendValue || !usdRate || !hkdRate) {
+    renderSummaryView(summary);
+    return;
+  }
+
+  if (UI_FLAGS.summaryOverallYieldNote && !overallYield) {
+    renderSummaryView(summary);
+    return;
+  }
+
+  const view = getSummaryViewModel(summary);
+  totalValue.textContent = view.totalLabel;
+  dailyPnl.textContent = view.dailyPnlText;
+  dailyPnl.hidden = !view.dailyPnlText;
+  dividendValue.textContent = view.dividendLabel;
+  usdRate.textContent = UI_FLAGS.compactFxSummary ? view.usdRateCompactText : view.usdRateText;
+  hkdRate.textContent = UI_FLAGS.compactFxSummary ? view.hkdRateCompactText : view.hkdRateText;
+  if (overallYield) {
+    overallYield.textContent = view.overallYieldText;
+  }
+}
+
+function getLegendSegmentKey(segment, index) {
+  if (segment && segment.key !== undefined && segment.key !== null) {
+    return String(segment.key);
+  }
+  if (segment && segment.label) {
+    return String(segment.label);
+  }
+  return `legend-${index}`;
+}
+
+function getLegendViewModel(segments) {
+  const total = segments.reduce((sum, item) => sum + item.value, 0) || 1;
+  const defaultVisible = UI_FLAGS.allocationLegendThresholdEnabled
+    ? segments.filter((segment) => segment.value / total >= ALLOCATION_LEGEND_MIN_WEIGHT)
+    : segments.slice(0, LEGEND_COLLAPSED_COUNT);
+  const collapsedCount = (defaultVisible.length ? defaultVisible : segments.slice(0, LEGEND_COLLAPSED_COUNT)).length;
+  return {
+    total,
+    collapsedCount,
+    canToggleLegend: collapsedCount < segments.length
+  };
+}
+
+function getLegendRowMarkup(segment, percent, index, collapsedCount, options = {}) {
+  const { animate = true } = options;
+  return `
+    <div class="legend-row${animate ? ' is-entering' : ''}${index >= collapsedCount ? ' legend-row--collapsible' : ''}" data-legend-key="${escapeHtml(getLegendSegmentKey(segment, index))}" style="animation-delay:${index * 30}ms">
+      <div class="legend-main">
+        <span class="legend-dot" style="background:${segment.color}"></span>
+        <span class="legend-label">${escapeHtml(segment.label)}</span>
+      </div>
+      <span class="legend-value">${(percent * 100).toFixed(1)}%</span>
+    </div>
+  `;
+}
+
+function syncLegendRow(row, segment, percent, index, collapsedCount, options = {}) {
+  const { animate = false } = options;
+  const dot = row.querySelector('.legend-dot');
+  const label = row.querySelector('.legend-label');
+  const value = row.querySelector('.legend-value');
+  if (!dot || !label || !value) {
+    return false;
+  }
+
+  row.dataset.legendKey = getLegendSegmentKey(segment, index);
+  row.className = `legend-row${animate ? ' is-entering' : ''}${index >= collapsedCount ? ' legend-row--collapsible' : ''}`;
+  row.style.animationDelay = `${index * 30}ms`;
+  dot.style.background = segment.color;
+  label.textContent = segment.label;
+  value.textContent = `${(percent * 100).toFixed(1)}%`;
+  return true;
+}
+
+function renderLegendView(segments, options = {}) {
+  const { animate = true } = options;
+  const view = getLegendViewModel(segments);
+  refs.companyLegend.innerHTML = segments.map((segment, index) => getLegendRowMarkup(
+    segment,
+    segment.value / view.total,
+    index,
+    view.collapsedCount,
+    { animate }
+  )).join('');
+
+  applyLegendExpandState();
+  refs.legendToggle.hidden = !view.canToggleLegend;
+  if (view.canToggleLegend) {
+    refs.legendToggle.textContent = state.legendExpanded
+      ? LABELS.collapseLegend
+      : `${LABELS.expandLegend} ${segments.length} ${LABELS.itemsUnit}`;
+  }
+}
+
+function patchLegendView(segments) {
+  if (!segments.length) {
+    refs.companyLegend.innerHTML = '';
+    refs.legendToggle.hidden = true;
+    return;
+  }
+
+  const currentRows = Array.from(refs.companyLegend.querySelectorAll('.legend-row'));
+  const keyedRows = new Map(
+    currentRows
+      .filter((row) => row.dataset.legendKey)
+      .map((row) => [row.dataset.legendKey, row])
+  );
+
+  if (currentRows.length && keyedRows.size !== currentRows.length) {
+    renderLegendView(segments, { animate: false });
+    return;
+  }
+
+  const view = getLegendViewModel(segments);
+  const nextKeys = segments.map((segment, index) => getLegendSegmentKey(segment, index));
+  const shouldReorder = currentRows.length !== nextKeys.length
+    || currentRows.some((row, index) => row.dataset.legendKey !== nextKeys[index]);
+
+  let fallbackToFullRender = false;
+
+  segments.forEach((segment, index) => {
+    if (fallbackToFullRender) {
+      return;
+    }
+    const key = nextKeys[index];
+    let row = keyedRows.get(key);
+    if (!row) {
+      row = createElementFromHtml(getLegendRowMarkup(
+        segment,
+        segment.value / view.total,
+        index,
+        view.collapsedCount,
+        { animate: false }
+      ));
+    }
+    if (!row || !syncLegendRow(row, segment, segment.value / view.total, index, view.collapsedCount)) {
+      fallbackToFullRender = true;
+      return;
+    }
+    if (shouldReorder || !row.isConnected) {
+      refs.companyLegend.appendChild(row);
+    }
+  });
+
+  if (fallbackToFullRender) {
+    renderLegendView(segments, { animate: false });
+    return;
+  }
+
+  keyedRows.forEach((row, key) => {
+    if (!nextKeys.includes(key)) {
+      row.remove();
+    }
+  });
+
+  applyLegendExpandState();
+  refs.legendToggle.hidden = !view.canToggleLegend;
+}
+
+function getBucketLabelText(label) {
+  return String(label || '').replace(/[：:]\s*$/, '');
+}
+
+function getBucketViewModel(segments, holdings, summary) {
+  const totalMarketValue = segments.reduce((sum, item) => sum + safeNumber(item.value, 0), 0);
+  const bucketItems = getBucketSummaryItems(holdings);
+  if (state.activeBucketKey && !bucketItems.some((item) => item.key === state.activeBucketKey)) {
+    state.activeBucketKey = null;
+  }
+  return {
+    totalMarketValue,
+    bucketItems,
+    activeItem: bucketItems.find((item) => item.key === state.activeBucketKey) || null,
+    overallNetYield: totalMarketValue > 0 ? summary.totalDividendCny / totalMarketValue : 0
+  };
+}
+
+function getBucketChipMarkup(item, totalMarketValue) {
+  const bucketShare = item.marketValueCny / (totalMarketValue || 1);
+  const isCompact = bucketShare < BUCKET_CHIP_COMPACT_THRESHOLD;
+  const isActive = state.activeBucketKey === item.key;
+  return `
+    <button
+      class="bucket-chip is-${item.key}${isActive ? ' is-active' : ''}${isCompact ? ' is-compact' : ''}"
+      type="button"
+      data-bucket-toggle="${item.key}"
+      style="--bucket-share:${bucketShare.toFixed(4)};"
+      aria-expanded="${isActive ? 'true' : 'false'}"
+    >
+      <span class="bucket-chip-label">${escapeHtml(item.label)}</span>
+      <span class="bucket-chip-value">${(bucketShare * 100).toFixed(1)}%</span>
+    </button>
+  `;
+}
+
+function syncBucketChip(button, item, totalMarketValue) {
+  const label = button.querySelector('.bucket-chip-label');
+  const value = button.querySelector('.bucket-chip-value');
+  if (!label || !value) {
+    return false;
+  }
+
+  const bucketShare = item.marketValueCny / (totalMarketValue || 1);
+  const isCompact = bucketShare < BUCKET_CHIP_COMPACT_THRESHOLD;
+  const isActive = state.activeBucketKey === item.key;
+  button.className = `bucket-chip is-${item.key}${isActive ? ' is-active' : ''}${isCompact ? ' is-compact' : ''}`;
+  button.dataset.bucketToggle = item.key;
+  button.style.setProperty('--bucket-share', bucketShare.toFixed(4));
+  button.setAttribute('aria-expanded', isActive ? 'true' : 'false');
+  label.textContent = item.label;
+  value.textContent = `${(bucketShare * 100).toFixed(1)}%`;
+  return true;
+}
+
+function getBucketDetailMarkup(activeItem, options = {}) {
+  const { animateDetail = true } = options;
+  if (!activeItem) {
+    return '';
+  }
+  return `
+    <div class="bucket-detail-card${animateDetail ? ' is-entering' : ''}">
+      <div class="bucket-detail-row">
+        <span class="bucket-detail-label">${getBucketLabelText(LABELS.marketValue)}</span>
+        <span class="bucket-detail-value" data-bucket-field="marketValue">${formatDisplayMoney(activeItem.marketValueCny, 'CNY')}</span>
+      </div>
+      <div class="bucket-detail-row">
+        <span class="bucket-detail-label">${getBucketLabelText(LABELS.annualDividend)}</span>
+        <span class="bucket-detail-value is-income" data-bucket-field="annualDividend">${formatDisplayMoney(activeItem.totalDividendCny, 'CNY')}</span>
+      </div>
+      <div class="bucket-detail-row">
+        <span class="bucket-detail-label">${getBucketLabelText(LABELS.dividendYield)}</span>
+        <span class="bucket-detail-value" data-bucket-field="averageYield">${formatPercent(activeItem.averageYield)}</span>
+      </div>
+    </div>
+  `;
+}
+
+function syncBucketDetail(detailCard, activeItem, options = {}) {
+  const { animateDetail = false } = options;
+  const marketValue = detailCard.querySelector('[data-bucket-field="marketValue"]');
+  const annualDividend = detailCard.querySelector('[data-bucket-field="annualDividend"]');
+  const averageYield = detailCard.querySelector('[data-bucket-field="averageYield"]');
+  if (!marketValue || !annualDividend || !averageYield) {
+    return false;
+  }
+
+  detailCard.className = `bucket-detail-card${animateDetail ? ' is-entering' : ''}`;
+  marketValue.textContent = formatDisplayMoney(activeItem.marketValueCny, 'CNY');
+  annualDividend.textContent = formatDisplayMoney(activeItem.totalDividendCny, 'CNY');
+  averageYield.textContent = formatPercent(activeItem.averageYield);
+  return true;
+}
+
+function renderBucketsView(segments, holdings, summary, options = {}) {
+  const { animateDetail = true } = options;
+  if (!UI_FLAGS.bucketSummaryV2) {
+    refs.bucketTrack.classList.remove('bucket-track--summary-v2');
+    if (!segments.length) {
+      refs.bucketTrack.innerHTML = '';
+      return;
+    }
+    refs.bucketTrack.innerHTML = segments.map((segment) => `
+      <div class="bucket-segment" data-bucket-segment-key="${segment.key}" style="width:${(segment.percent * 100).toFixed(2)}%;background:${segment.color}">
+        <span>${segment.label} ${(segment.percent * 100).toFixed(1)}%</span>
+      </div>
+    `).join('');
+    return;
+  }
+
+  refs.bucketTrack.classList.add('bucket-track--summary-v2');
+  const view = getBucketViewModel(segments, holdings, summary);
+  refs.bucketTrack.innerHTML = `
+    <div class="bucket-summary-v2">
+      <div class="bucket-chip-row">
+        ${view.bucketItems.map((item) => getBucketChipMarkup(item, view.totalMarketValue)).join('')}
+      </div>
+      ${UI_FLAGS.summaryOverallYieldNote
+        ? ''
+        : `<div class="bucket-overall-yield" data-bucket-field="overallYield">${UI_TEXT.overallAverageNetYield} ${formatPercent(view.overallNetYield)}</div>`}
+      ${getBucketDetailMarkup(view.activeItem, { animateDetail })}
+    </div>
+  `;
+}
+
+function patchBucketsView(segments, holdings, summary) {
+  if (!UI_FLAGS.bucketSummaryV2) {
+    renderBucketsView(segments, holdings, summary, { animateDetail: false });
+    return;
+  }
+
+  refs.bucketTrack.classList.add('bucket-track--summary-v2');
+  const root = refs.bucketTrack.querySelector('.bucket-summary-v2');
+  const chipRow = refs.bucketTrack.querySelector('.bucket-chip-row');
+  if (!root || !chipRow) {
+    renderBucketsView(segments, holdings, summary, { animateDetail: false });
+    return;
+  }
+
+  const view = getBucketViewModel(segments, holdings, summary);
+  const currentButtons = Array.from(chipRow.querySelectorAll('.bucket-chip[data-bucket-toggle]'));
+  const keyedButtons = new Map(currentButtons.map((button) => [button.dataset.bucketToggle, button]));
+  let fallbackToFullRender = false;
+
+  view.bucketItems.forEach((item) => {
+    if (fallbackToFullRender) {
+      return;
+    }
+    let button = keyedButtons.get(item.key);
+    if (!button) {
+      button = createElementFromHtml(getBucketChipMarkup(item, view.totalMarketValue));
+    }
+    if (!button || !syncBucketChip(button, item, view.totalMarketValue)) {
+      fallbackToFullRender = true;
+      return;
+    }
+    chipRow.appendChild(button);
+  });
+
+  if (fallbackToFullRender) {
+    renderBucketsView(segments, holdings, summary, { animateDetail: false });
+    return;
+  }
+
+  keyedButtons.forEach((button, key) => {
+    if (!view.bucketItems.some((item) => item.key === key)) {
+      button.remove();
+    }
+  });
+
+  let detailCard = root.querySelector('.bucket-detail-card');
+  let overallYield = root.querySelector('[data-bucket-field="overallYield"]');
+
+  if (UI_FLAGS.summaryOverallYieldNote) {
+    if (overallYield) {
+      overallYield.remove();
+      overallYield = null;
+    }
+  } else {
+    if (!overallYield) {
+      overallYield = createElementFromHtml('<div class="bucket-overall-yield" data-bucket-field="overallYield"></div>');
+    }
+    if (!overallYield) {
+      renderBucketsView(segments, holdings, summary, { animateDetail: false });
+      return;
+    }
+    overallYield.textContent = `${UI_TEXT.overallAverageNetYield} ${formatPercent(view.overallNetYield)}`;
+    if (detailCard) {
+      root.insertBefore(overallYield, detailCard);
+    } else {
+      root.appendChild(overallYield);
+    }
+  }
+
+  if (!view.activeItem) {
+    if (detailCard) {
+      detailCard.remove();
+    }
+    return;
+  }
+
+  if (!detailCard) {
+    detailCard = createElementFromHtml(getBucketDetailMarkup(view.activeItem, { animateDetail: false }));
+  }
+  if (!detailCard || !syncBucketDetail(detailCard, view.activeItem, { animateDetail: false })) {
+    renderBucketsView(segments, holdings, summary, { animateDetail: false });
+    return;
+  }
+  root.appendChild(detailCard);
+}
+
+function getHoldingViewModel(item, index = 0) {
+  const tooltipLines = buildDividendTooltipLines(item);
+  const statusKey = normalizeDividendStatus(item.dividendStatus, 'missing');
+  return {
+    priceText: state.showAmounts ? formatPlainPrice(item.price) : MASK_PRICE,
+    marketValueText: state.showAmounts ? formatMoney(item.marketValueCny, 'CNY') : MASK_AMOUNT,
+    annualDividendText: state.showAmounts ? formatMoney(item.netAnnualDividendCny, 'CNY') : MASK_AMOUNT,
+    quantityText: state.showAmounts ? String(item.quantity) : MASK_AMOUNT,
+    weightText: `${(item.holdingWeight * 100).toFixed(1)}%`,
+    statusKey,
+    statusLabel: getDividendStatusLabel(statusKey),
+    tooltipLines,
+    tooltipHtml: tooltipLines.map((line) => `<span>${escapeHtml(line)}</span>`).join(''),
+    yieldText: formatPercent(item.effectiveYield),
+    bucketTone: item.bucket === 'income' ? 'income' : 'core',
+    staggerDelay: Math.min(index * 25, 400)
+  };
+}
+
+function getHoldingMarkup(item, index, options = {}) {
+  const { animate = true } = options;
+  const view = getHoldingViewModel(item, index);
+  return `
+    <div class="holding-swipe${animate ? ' is-entering' : ''}" data-id="${item.localId}" style="--holding-swipe-offset:0px;animation-delay:${view.staggerDelay}ms;">
+      <button class="holding-swipe-delete" type="button" data-action="delete" aria-label="${LABELS.deleteConfirm} ${escapeHtml(item.name)}">
+        <span>\u5220\u9664</span>
+      </button>
+      <article class="holding-card" data-id="${item.localId}" data-dividend-status="${escapeHtml(item.dividendStatus || 'missing')}">
+        <header class="holding-head">
+          <div class="holding-main">
+            <h3 class="holding-name">${escapeHtml(item.name)}</h3>
+            <div class="holding-meta-row">
+              <span class="holding-price" data-holding-field="price">${escapeHtml(view.priceText)}</span>
+              <span class="holding-divider">${getHoldingTitleDivider()}</span>
+              <span class="holding-code">${escapeHtml(item.symbol)}</span>
+            </div>
+          </div>
+          <div class="holding-side">
+            <span class="weight-pill is-${view.bucketTone}" data-holding-field="weight">${escapeHtml(view.weightText)}</span>
+            <button class="ghost-minus" type="button" data-action="delete" aria-label="${LABELS.deleteConfirm} ${escapeHtml(item.name)}">-</button>
+          </div>
+        </header>
+        <div class="holding-grid">
+          <div class="metric-static">
+            <div class="metric-row">
+              <span class="metric-label">${LABELS.marketValue}</span>
+              <span class="metric-value" data-holding-field="marketValue">${escapeHtml(view.marketValueText)}</span>
+            </div>
+          </div>
+          <button class="metric-button metric-right" type="button" data-action="edit-quantity">
+            <div class="metric-row metric-right">
+              <span class="metric-label">${LABELS.quantity}</span>
+              <span class="metric-value" data-holding-field="quantity">${escapeHtml(view.quantityText)}</span>
+            </div>
+          </button>
+          <button class="metric-button" type="button" data-action="edit-tax">
+            <div class="metric-row">
+              <span class="metric-label">${LABELS.annualDividend}</span>
+              <span class="metric-value is-income" data-holding-field="annualDividend">${escapeHtml(view.annualDividendText)}</span>
+            </div>
+          </button>
+          <div class="metric-static metric-right metric-static--yield">
+            <div class="metric-row metric-right metric-row--yield">
+              <button class="metric-label-button" type="button" data-action="edit-dividend">${LABELS.dividendYield}</button>
+              <button
+                class="dividend-status-button dividend-status-button--value is-${view.statusKey}"
+                type="button"
+                aria-label="${escapeHtml(view.statusLabel)}"
+                aria-expanded="false"
+                title="${escapeHtml(view.tooltipLines.join('\n'))}"
+                data-tooltip-side="left"
+                data-holding-field="effectiveYield"
+              >
+                <span class="dividend-status-value" data-holding-field="effectiveYieldValue">${escapeHtml(view.yieldText)}</span>
+                <span class="dividend-status-tooltip" data-holding-field="dividendTooltip">${view.tooltipHtml}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+function renderHoldingsView(holdings, options = {}) {
+  const { animate = true } = options;
+  activeDividendTooltipButton = null;
+  if (!holdings.length) {
+    refs.stockList.innerHTML = '<article class="holding-card empty-card"></article>';
+    return;
+  }
+
+  refs.stockList.innerHTML = holdings.map((item, index) => getHoldingMarkup(item, index, { animate })).join('');
+}
+
+function syncHoldingRow(wrapper, item) {
+  const card = wrapper.querySelector('.holding-card');
+  const price = wrapper.querySelector('[data-holding-field="price"]');
+  const weight = wrapper.querySelector('[data-holding-field="weight"]');
+  const marketValue = wrapper.querySelector('[data-holding-field="marketValue"]');
+  const quantity = wrapper.querySelector('[data-holding-field="quantity"]');
+  const annualDividend = wrapper.querySelector('[data-holding-field="annualDividend"]');
+  const effectiveYield = wrapper.querySelector('[data-holding-field="effectiveYield"]');
+  const effectiveYieldValue = wrapper.querySelector('[data-holding-field="effectiveYieldValue"]');
+  const tooltip = wrapper.querySelector('[data-holding-field="dividendTooltip"]');
+  const name = wrapper.querySelector('.holding-name');
+  const code = wrapper.querySelector('.holding-code');
+  const divider = wrapper.querySelector('.holding-divider');
+  if (!card || !price || !weight || !marketValue || !quantity || !annualDividend || !effectiveYield || !effectiveYieldValue || !tooltip || !name || !code || !divider) {
+    return false;
+  }
+
+  const view = getHoldingViewModel(item);
+  wrapper.dataset.id = String(item.localId);
+  wrapper.classList.remove('is-entering');
+  wrapper.style.animationDelay = '0ms';
+  card.dataset.id = String(item.localId);
+  card.dataset.dividendStatus = item.dividendStatus || 'missing';
+  name.textContent = item.name;
+  code.textContent = item.symbol;
+  divider.textContent = getHoldingTitleDivider();
+  price.textContent = view.priceText;
+  weight.textContent = view.weightText;
+  weight.classList.remove('is-core', 'is-income');
+  weight.classList.add(`is-${view.bucketTone}`);
+  marketValue.textContent = view.marketValueText;
+  quantity.textContent = view.quantityText;
+  annualDividend.textContent = view.annualDividendText;
+
+  const keepTooltipOpen = effectiveYield.classList.contains('is-tooltip-open');
+  effectiveYield.className = `dividend-status-button dividend-status-button--value is-${view.statusKey}${keepTooltipOpen ? ' is-tooltip-open' : ''}`;
+  effectiveYield.setAttribute('aria-label', view.statusLabel);
+  effectiveYield.setAttribute('aria-expanded', keepTooltipOpen ? 'true' : 'false');
+  effectiveYield.setAttribute('title', view.tooltipLines.join('\n'));
+  effectiveYield.dataset.tooltipSide = 'left';
+  effectiveYieldValue.textContent = view.yieldText;
+  tooltip.innerHTML = view.tooltipHtml;
+
+  wrapper.querySelectorAll('[data-action="delete"]').forEach((button) => {
+    button.setAttribute('aria-label', `${LABELS.deleteConfirm} ${item.name}`);
+  });
+  return true;
+}
+
+function syncRenderedHoldingsView(holdings, options = {}) {
+  const { animateReflow = false } = options;
+  if (!holdings.length) {
+    refs.stockList.innerHTML = '<article class="holding-card empty-card"></article>';
+    activeDividendTooltipButton = null;
+    return;
+  }
+
+  const wrappers = Array.from(refs.stockList.querySelectorAll('.holding-swipe[data-id]'));
+  if (!wrappers.length) {
+    renderHoldingsView(holdings, { animate: false });
+    return;
+  }
+
+  const currentIds = wrappers.map((wrapper) => safeNumber(wrapper.dataset.id, 0));
+  const nextIds = holdings.map((item) => item.localId);
+  const shouldReorder = currentIds.length !== nextIds.length
+    || currentIds.some((id, index) => id !== nextIds[index]);
+  const previousPositions = animateReflow && shouldReorder ? captureHoldingPositions() : null;
+  const keyedWrappers = new Map(wrappers.map((wrapper) => [safeNumber(wrapper.dataset.id, 0), wrapper]));
+  let fallbackToFullRender = false;
+
+  holdings.forEach((item, index) => {
+    if (fallbackToFullRender) {
+      return;
+    }
+    let wrapper = keyedWrappers.get(item.localId);
+    if (!wrapper) {
+      wrapper = createElementFromHtml(getHoldingMarkup(item, index, { animate: false }));
+    }
+    if (!wrapper || (!wrapper.dataset.id && !wrapper.classList.contains('holding-swipe')) || (keyedWrappers.has(item.localId) && !syncHoldingRow(wrapper, item))) {
+      fallbackToFullRender = true;
+      return;
+    }
+    if (shouldReorder || !wrapper.isConnected) {
+      refs.stockList.appendChild(wrapper);
+    }
+  });
+
+  if (fallbackToFullRender) {
+    renderHoldingsView(holdings, { animate: false });
+    return;
+  }
+
+  keyedWrappers.forEach((wrapper, id) => {
+    if (!nextIds.includes(id)) {
+      if (activeHoldingSwipe && activeHoldingSwipe.wrapper === wrapper) {
+        activeHoldingSwipe = null;
+      }
+      if (activeDividendTooltipButton && wrapper.contains(activeDividendTooltipButton)) {
+        activeDividendTooltipButton = null;
+      }
+      wrapper.remove();
+    }
+  });
+
+  if (activeDividendTooltipButton && !refs.stockList.contains(activeDividendTooltipButton)) {
+    activeDividendTooltipButton = null;
+  }
+
+  if (previousPositions) {
+    animateHoldingReflow(previousPositions);
+  }
+}
+
+function renderDashboardIncrementally(summary, companySegments, bucketSegments, options = {}) {
+  const { animateHoldingReflow = false } = options;
+
+  patchSummaryView(summary);
+  patchLegendView(companySegments);
+  patchBucketsView(bucketSegments, summary.holdings, summary);
+  renderSortChips();
+  renderTimestamp();
+  renderPrivacyButton();
+  syncRenderedHoldingsView(summary.holdings, { animateReflow: animateHoldingReflow });
 }
 
 function captureHoldingPositions(excludedId = 0) {
@@ -2398,9 +3080,8 @@ async function refreshMarketData(options = {}) {
 
     saveState();
     renderApp({
-      animateLegend: false,
-      animateBucketDetail: false,
-      animateHoldings: false
+      incremental: true,
+      animateHoldingReflow: true
     });
   } catch (error) {
     console.warn('refresh failed', error);
@@ -2607,7 +3288,9 @@ function renderApp(options = {}) {
     animateLegend = true,
     animateBucketDetail = true,
     animateHoldings = true,
-    renderHoldingsList = true
+    renderHoldingsList = true,
+    incremental = false,
+    animateHoldingReflow = false
   } = options;
   const summary = computeHoldings();
   const companySegments = getCompanySegments(summary.holdings);
@@ -2621,16 +3304,21 @@ function renderApp(options = {}) {
   }
 
   document.body.classList.toggle('ui-refined-accent', UI_FLAGS.refinedAccentColors);
-  renderSummary(summary);
-  renderLegend(companySegments, { animate: animateLegend });
-  renderBuckets(bucketSegments, summary.holdings, summary, { animateDetail: animateBucketDetail });
+  if (incremental) {
+    renderDashboardIncrementally(summary, companySegments, bucketSegments, { animateHoldingReflow });
+    return;
+  }
+
+  renderSummaryView(summary);
+  renderLegendView(companySegments, { animate: animateLegend });
+  renderBucketsView(bucketSegments, summary.holdings, summary, { animateDetail: animateBucketDetail });
   renderSortChips();
   renderTimestamp();
   renderPrivacyButton();
   if (renderHoldingsList) {
-    renderHoldings(summary.holdings, { animate: animateHoldings });
+    renderHoldingsView(summary.holdings, { animate: animateHoldings });
   } else {
-    syncRenderedHoldings(summary.holdings);
+    syncRenderedHoldingsView(summary.holdings, { animateReflow: false });
   }
 }
 
@@ -2739,7 +3427,7 @@ refs.bucketTrack.addEventListener('click', (event) => {
   state.activeBucketKey = state.activeBucketKey === nextKey ? null : nextKey;
   const summary = computeHoldings();
   const bucketSegments = getBucketSegments(summary.holdings);
-  renderBuckets(bucketSegments, summary.holdings, summary, { animateDetail: true });
+  renderBucketsView(bucketSegments, summary.holdings, summary, { animateDetail: true });
 });
 
 refs.stockList.addEventListener('mouseover', (event) => {
