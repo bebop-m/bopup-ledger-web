@@ -125,19 +125,18 @@ function getLegendViewModel(segments) {
   return { total, collapsedCount: cc, canToggleLegend: cc < segments.length };
 }
 
-function getLegendRowMarkup(seg, pct, index, cc, opts = {}) {
+function getLegendRowMarkup(seg, pct, index, opts = {}) {
   const { animate = true } = opts;
-  const collapsible = index >= cc;
-  return `<div class="legend-row${animate && !collapsible ? ' is-entering' : ''}${collapsible ? ' legend-row--collapsible' : ''}" data-legend-key="${escapeHtml(getLegendSegmentKey(seg, index))}" style="animation-delay:${index * LEGEND_ENTER_STAGGER_MS}ms">
+  return `<div class="legend-row${animate ? ' is-entering' : ''}" data-legend-key="${escapeHtml(getLegendSegmentKey(seg, index))}" style="animation-delay:${index * LEGEND_ENTER_STAGGER_MS}ms">
     <div class="legend-row-shell"><div class="legend-main"><span class="legend-dot" style="background:${seg.color}"></span><span class="legend-label">${escapeHtml(seg.label)}</span></div>
     <span class="legend-value">${(pct * 100).toFixed(1)}%</span></div></div>`;
 }
 
-function syncLegendRow(row, seg, pct, index, cc, opts = {}) {
+function syncLegendRow(row, seg, pct, index, opts = {}) {
   const dot = row.querySelector('.legend-dot'), label = row.querySelector('.legend-label'), value = row.querySelector('.legend-value');
   if (!dot || !label || !value) return false;
   row.dataset.legendKey = getLegendSegmentKey(seg, index);
-  row.className = `legend-row${opts.animate ? ' is-entering' : ''}${index >= cc ? ' legend-row--collapsible' : ''}`;
+  row.className = `legend-row${opts.animate ? ' is-entering' : ''}`;
   row.style.animationDelay = `${index * LEGEND_ENTER_STAGGER_MS}ms`;
   dot.style.background = seg.color; label.textContent = seg.label; value.textContent = `${(pct * 100).toFixed(1)}%`;
   return true;
@@ -151,46 +150,44 @@ function keepLegendToggleStable(prevTop) {
 
 export function applyLegendExpandState(opts = {}) {
   const { preserveScroll = false, toggleTop = 0 } = opts;
-  Array.from(refs.companyLegend.querySelectorAll('.legend-row--collapsible')).forEach((row) => {
-    const shell = row.querySelector('.legend-row-shell');
-    const h = shell ? Math.max(Math.ceil(shell.getBoundingClientRect().height), 18) : Math.max(row.scrollHeight, 18);
-    row.style.setProperty('--legend-row-shell-height', `${h}px`);
-    row.classList.toggle('is-collapsed', !state.legendExpanded);
-    row.setAttribute('aria-hidden', state.legendExpanded ? 'false' : 'true');
-  });
+  const segments = getCompanySegments(computeHoldings().holdings);
+  const v = getLegendViewModel(segments);
+  const visible = state.legendExpanded ? segments : segments.slice(0, v.collapsedCount);
+  refs.companyLegend.innerHTML = visible.map((s, i) => getLegendRowMarkup(s, s.value / v.total, i, { animate: false })).join('');
+  refs.legendToggle.hidden = !v.canToggleLegend;
   refs.legendToggle.textContent = state.legendExpanded ? LABELS.collapseLegend
-    : `${LABELS.expandLegend} ${refs.companyLegend.querySelectorAll('.legend-row').length} ${LABELS.itemsUnit}`;
+    : `${LABELS.expandLegend} ${segments.length} ${LABELS.itemsUnit}`;
   if (preserveScroll) keepLegendToggleStable(toggleTop);
 }
 
 export function renderLegendView(segments, opts = {}) {
   const { animate = true } = opts;
   const v = getLegendViewModel(segments);
-  refs.companyLegend.innerHTML = segments.map((s, i) => getLegendRowMarkup(s, s.value / v.total, i, v.collapsedCount, { animate })).join('');
-  applyLegendExpandState();
+  const visible = state.legendExpanded ? segments : segments.slice(0, v.collapsedCount);
+  refs.companyLegend.innerHTML = visible.map((s, i) => getLegendRowMarkup(s, s.value / v.total, i, { animate })).join('');
   refs.legendToggle.hidden = !v.canToggleLegend;
   if (v.canToggleLegend) refs.legendToggle.textContent = state.legendExpanded ? LABELS.collapseLegend : `${LABELS.expandLegend} ${segments.length} ${LABELS.itemsUnit}`;
 }
 
 export function patchLegendView(segments) {
   if (!segments.length) { refs.companyLegend.innerHTML = ''; refs.legendToggle.hidden = true; return; }
+  const v = getLegendViewModel(segments);
+  const visible = state.legendExpanded ? segments : segments.slice(0, v.collapsedCount);
   const rows = Array.from(refs.companyLegend.querySelectorAll('.legend-row'));
   const keyedRows = new Map(rows.filter((r) => r.dataset.legendKey).map((r) => [r.dataset.legendKey, r]));
   if (rows.length && keyedRows.size !== rows.length) { renderLegendView(segments, { animate: false }); return; }
-  const v = getLegendViewModel(segments);
-  const nextKeys = segments.map((s, i) => getLegendSegmentKey(s, i));
+  const nextKeys = visible.map((s, i) => getLegendSegmentKey(s, i));
   const reorder = rows.length !== nextKeys.length || rows.some((r, i) => r.dataset.legendKey !== nextKeys[i]);
   let fallback = false;
-  segments.forEach((seg, i) => {
+  visible.forEach((seg, i) => {
     if (fallback) return;
     let row = keyedRows.get(nextKeys[i]);
-    if (!row) row = createElementFromHtml(getLegendRowMarkup(seg, seg.value / v.total, i, v.collapsedCount, { animate: false }));
-    if (!row || !syncLegendRow(row, seg, seg.value / v.total, i, v.collapsedCount)) { fallback = true; return; }
+    if (!row) row = createElementFromHtml(getLegendRowMarkup(seg, seg.value / v.total, i, { animate: false }));
+    if (!row || !syncLegendRow(row, seg, seg.value / v.total, i)) { fallback = true; return; }
     if (reorder || !row.isConnected) refs.companyLegend.appendChild(row);
   });
   if (fallback) { renderLegendView(segments, { animate: false }); return; }
   keyedRows.forEach((row, key) => { if (!nextKeys.includes(key)) row.remove(); });
-  applyLegendExpandState();
   refs.legendToggle.hidden = !v.canToggleLegend;
 }
 
