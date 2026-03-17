@@ -268,11 +268,64 @@ svg {
 .summary-action-button svg {
   width: 17px;
   height: 17px;
+  overflow: visible;
 }
 
 .summary-action-button:hover,
 .summary-action-button:focus-visible {
   color: #738198;
+}
+
+.summary-action-button--cloud {
+  position: relative;
+}
+
+.cloud-sync-icon {
+  position: relative;
+  display: inline-flex;
+  width: 17px;
+  height: 17px;
+}
+
+.cloud-sync-base,
+.cloud-sync-check {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cloud-sync-base {
+  transition:
+    opacity var(--motion-quick) var(--ease-soft),
+    transform var(--motion-base) var(--ease-soft),
+    color var(--motion-quick) var(--ease-soft);
+}
+
+.cloud-sync-badge {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0;
+  transform: scale(0.45);
+  transform-origin: 50% 50%;
+  box-shadow: 0 0 0 0 rgba(21, 40, 73, 0.08);
+  transition:
+    opacity var(--motion-quick) var(--ease-soft),
+    transform var(--motion-base) var(--ease-soft);
+}
+
+.cloud-sync-check {
+  color: #4d8f5d;
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity var(--motion-quick) var(--ease-soft),
+    transform var(--motion-base) var(--ease-soft);
 }
 
 .circle-button {
@@ -312,13 +365,56 @@ svg {
   animation: spin 800ms linear infinite;
 }
 
-.summary-action-button.is-syncing svg {
+.summary-action-button:not(.summary-action-button--cloud).is-syncing svg {
   animation: spin 800ms linear infinite;
+}
+
+.summary-action-button--cloud.is-syncing .cloud-sync-base {
+  transform: translateY(-0.5px);
+}
+
+.summary-action-button--cloud.is-syncing .cloud-sync-badge {
+  opacity: 0.88;
+  animation: cloud-sync-pulse 1100ms var(--ease-soft) infinite;
+}
+
+.summary-action-button--cloud.is-success {
+  color: #6b8d74;
+}
+
+.summary-action-button--cloud.is-success .cloud-sync-base {
+  opacity: 0.76;
+  transform: translateY(-0.5px);
+}
+
+.summary-action-button--cloud.is-success .cloud-sync-badge {
+  opacity: 0;
+  animation: none;
+}
+
+.summary-action-button--cloud.is-success .cloud-sync-check {
+  opacity: 1;
+  transform: scale(1);
 }
 
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@keyframes cloud-sync-pulse {
+  0% {
+    opacity: 0.28;
+    transform: scale(0.45);
+  }
+  45% {
+    opacity: 0.96;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.18;
+    transform: scale(0.58);
+  }
 }
 
 .circle-button svg {
@@ -348,20 +444,45 @@ svg {
   visibility: hidden;
 }
 
-.circle-button .eye-slash {
-  opacity: 0;
+.circle-button .eye-shell,
+.circle-button .eye-core,
+.circle-button .eye-slash,
+.summary-action-button .eye-shell,
+.summary-action-button .eye-core,
+.summary-action-button .eye-slash {
+  transform-origin: 50% 50%;
+  transition:
+    opacity var(--motion-quick) var(--ease-soft),
+    transform var(--motion-base) var(--ease-soft);
 }
 
-.circle-button.is-hidden .eye-slash {
+.circle-button .eye-core,
+.summary-action-button .eye-core {
   opacity: 1;
+  transform: scale(1);
 }
 
+.circle-button .eye-slash,
 .summary-action-button .eye-slash {
   opacity: 0;
+  transform: scale(0.72) rotate(-8deg);
 }
 
+.circle-button.is-hidden .eye-shell,
+.summary-action-button.is-hidden .eye-shell {
+  transform: scale(0.98);
+}
+
+.circle-button.is-hidden .eye-core,
+.summary-action-button.is-hidden .eye-core {
+  opacity: 0.18;
+  transform: scale(0.58);
+}
+
+.circle-button.is-hidden .eye-slash,
 .summary-action-button.is-hidden .eye-slash {
   opacity: 1;
+  transform: scale(1) rotate(0deg);
 }
 
 .circle-button:disabled {
@@ -854,10 +975,6 @@ body:not(.privacy-hidden) .dividend-status-button--value {
   transition: opacity 150ms var(--ease-soft);
 }
 
-.stock-list.is-resorting {
-  opacity: 0;
-}
-
 .stock-list .holding-swipe.is-entering {
   animation: holding-fade-in var(--motion-base) var(--ease-soft) both;
 }
@@ -1158,15 +1275,22 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   left: calc(100% + 8px);
   right: auto;
   z-index: 6;
-  display: none;
   min-width: 168px;
+  max-width: 220px;
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.97);
   color: var(--text);
   border: 1px solid var(--line);
   box-shadow: 0 8px 24px rgba(21, 40, 73, 0.1);
-  transform: translateY(-50%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(-6px, -50%, 0) scale(0.98);
+  transition:
+    opacity var(--motion-quick) var(--ease-soft),
+    transform var(--motion-base) var(--ease-soft),
+    visibility 0s linear var(--motion-base);
 }
 
 .dividend-status-button--value .dividend-status-tooltip {
@@ -1174,7 +1298,7 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   right: calc(100% + 8px);
   top: auto;
   bottom: calc(100% + 6px);
-  transform: translateX(20%);
+  transform: translate3d(12%, 6px, 0) scale(0.98);
 }
 
 /* Allow tooltip to overflow the card when open */
@@ -1185,6 +1309,7 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 .dividend-status-button[data-tooltip-side="left"] .dividend-status-tooltip {
   left: auto;
   right: calc(100% + 8px);
+  transform: translate3d(6px, -50%, 0) scale(0.98);
 }
 
 .dividend-status-tooltip span {
@@ -1192,7 +1317,7 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   font-size: 11px;
   line-height: 1.55;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
   color: var(--muted);
 }
 
@@ -1200,7 +1325,20 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
 .dividend-status-button:not(.dividend-status-button--value):focus .dividend-status-tooltip,
 .dividend-status-button:not(.dividend-status-button--value):focus-visible .dividend-status-tooltip,
 .dividend-status-button--value.is-tooltip-open .dividend-status-tooltip {
-  display: block;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.dividend-status-button:not(.dividend-status-button--value):hover .dividend-status-tooltip,
+.dividend-status-button:not(.dividend-status-button--value):focus .dividend-status-tooltip,
+.dividend-status-button:not(.dividend-status-button--value):focus-visible .dividend-status-tooltip {
+  transform: translate3d(0, -50%, 0) scale(1);
+}
+
+.dividend-status-button--value.is-tooltip-open .dividend-status-tooltip {
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .holding-grid {
@@ -1422,11 +1560,12 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   z-index: 35;
   background: rgba(24, 38, 60, 0.22);
   backdrop-filter: blur(2px);
-  animation: modal-fade-in 200ms var(--ease-soft) forwards;
+  opacity: 0;
+  animation: confirm-fade-in 180ms var(--ease-soft) forwards;
 }
 
 .confirm-mask.is-closing {
-  animation: modal-fade-out 180ms var(--ease-soft) forwards;
+  animation: confirm-fade-out 180ms var(--ease-soft) forwards;
 }
 
 .confirm-sheet {
@@ -1440,11 +1579,51 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   border-radius: 22px;
   background: #ffffff;
   box-shadow: 0 20px 44px rgba(24, 39, 64, 0.16);
-  animation: modal-slide-in 260ms var(--ease-soft) forwards;
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  transform-origin: 50% 100%;
+  transition:
+    transform 110ms var(--ease-soft),
+    opacity 110ms var(--ease-soft);
+  animation: confirm-sheet-in 240ms var(--ease-soft) forwards;
 }
 
 .confirm-sheet.is-closing {
-  animation: modal-slide-out 200ms var(--ease-soft) forwards;
+  animation: confirm-sheet-out 190ms var(--ease-soft) forwards;
+}
+
+.confirm-sheet.is-confirmed:not(.is-closing) {
+  transform: translateY(-1px) scale(0.992);
+}
+
+.confirm-sheet.is-cancelled:not(.is-closing) {
+  transform: translateY(3px) scale(0.992);
+  opacity: 0.98;
+}
+
+.confirm-sheet.is-danger {
+  border-color: rgba(224, 92, 77, 0.14);
+  box-shadow: 0 22px 48px rgba(24, 39, 64, 0.16);
+}
+
+@keyframes confirm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes confirm-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes confirm-sheet-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes confirm-sheet-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(16px) scale(0.985); }
 }
 
 .confirm-message {
@@ -1994,7 +2173,8 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
   .dividend-status-button--value .dividend-status-tooltip {
     transition:
       opacity var(--motion-quick) var(--ease-soft),
-      transform var(--motion-quick) var(--ease-soft);
+      transform var(--motion-quick) var(--ease-soft),
+      visibility 0s linear var(--motion-quick);
   }
 
   .panel-note,

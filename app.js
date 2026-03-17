@@ -48,6 +48,7 @@ let currentDividendStaleDays = DEFAULT_STALE_DAYS;
 let activeHoldingSwipe = null;
 let activeDividendTooltipButton = null;
 let suppressHoldingClickUntil = 0;
+let cloudSyncSuccessTimer = 0;
 
 /* ----------------------------------------------------------------------------
  *  [2] UI FLAGS, LABELS & THEME
@@ -268,11 +269,12 @@ function showConfirm(message, options = {}) {
   return new Promise((resolve) => {
     const okText = okLabel || LABELS.save || '\u786e\u8ba4';
     const cancelText = cancelLabel || LABELS.cancel || '\u53d6\u6d88';
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     refs.confirmRoot.innerHTML = `
       <div class="confirm-mask"></div>
-      <section class="confirm-sheet" role="alertdialog" aria-modal="true">
-        <p class="confirm-message">${escapeHtml(message)}</p>
-        ${sub ? `<p class="confirm-sub">${escapeHtml(sub)}</p>` : ''}
+      <section class="confirm-sheet${danger ? ' is-danger' : ''}" role="alertdialog" aria-modal="true" aria-labelledby="confirmMessage" aria-describedby="${sub ? 'confirmSub' : 'confirmMessage'}">
+        <p class="confirm-message" id="confirmMessage">${escapeHtml(message)}</p>
+        ${sub ? `<p class="confirm-sub" id="confirmSub">${escapeHtml(sub)}</p>` : ''}
         <div class="confirm-actions">
           <button class="confirm-button confirm-button--cancel" type="button" data-confirm="cancel">${escapeHtml(cancelText)}</button>
           <button class="confirm-button ${danger ? 'confirm-button--danger' : 'confirm-button--ok'}" type="button" data-confirm="ok">${escapeHtml(okText)}</button>
@@ -285,19 +287,28 @@ function showConfirm(message, options = {}) {
       if (settled) return;
       settled = true;
       refs.confirmRoot.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKeydown, true);
       const mask = refs.confirmRoot.querySelector('.confirm-mask');
       const sheet = refs.confirmRoot.querySelector('.confirm-sheet');
       if (mask && sheet) {
-        mask.classList.add('is-closing');
-        sheet.classList.add('is-closing');
+        refs.confirmRoot.querySelectorAll('.confirm-button').forEach((button) => {
+          button.disabled = true;
+        });
+        sheet.classList.add(result ? 'is-confirmed' : 'is-cancelled');
+        window.setTimeout(() => {
+          mask.classList.add('is-closing');
+          sheet.classList.add('is-closing');
+        }, 40);
         sheet.addEventListener('animationend', () => {
           refs.confirmRoot.innerHTML = '';
           document.body.classList.remove('modal-open');
+          previousFocus && previousFocus.focus({ preventScroll: true });
           resolve(result);
         }, { once: true });
       } else {
         refs.confirmRoot.innerHTML = '';
         document.body.classList.remove('modal-open');
+        previousFocus && previousFocus.focus({ preventScroll: true });
         resolve(result);
       }
     }
@@ -308,7 +319,20 @@ function showConfirm(message, options = {}) {
       if (!btn) return;
       cleanup(btn.dataset.confirm === 'ok');
     }
+    function handleKeydown(event) {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      event.preventDefault();
+      cleanup(false);
+    }
     refs.confirmRoot.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeydown, true);
+    requestAnimationFrame(() => {
+      const focusTarget = refs.confirmRoot.querySelector('[data-confirm="cancel"]')
+        || refs.confirmRoot.querySelector('[data-confirm="ok"]');
+      focusTarget && focusTarget.focus({ preventScroll: true });
+    });
   });
 }
 
@@ -355,13 +379,19 @@ function configureUiChrome() {
     refs.summaryActions.append(refs.exportButton, refs.privacyButton);
   }
 
-  refs.exportButton.className = 'summary-action-button';
+  refs.exportButton.className = 'summary-action-button summary-action-button--cloud';
   refs.exportButton.setAttribute('aria-label', '\u540c\u6b65\u5230\u4e91\u7aef');
   refs.exportButton.title = '\u540c\u6b65\u5230\u4e91\u7aef';
   refs.exportButton.innerHTML = `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M20 17a3.5 3.5 0 0 0-1.6-6.4h-.5A6.2 6.2 0 0 0 6 9.6 4.4 4.4 0 0 0 6.5 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
-    </svg>
+    <span class="cloud-sync-icon" aria-hidden="true">
+      <svg class="cloud-sync-base" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 17a3.5 3.5 0 0 0-1.6-6.4h-.5A6.2 6.2 0 0 0 6 9.6 4.4 4.4 0 0 0 6.5 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+      <span class="cloud-sync-badge"></span>
+      <svg class="cloud-sync-check" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M2.2 6.4 4.9 9 9.8 3.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    </span>
   `;
   refs.privacyButton.classList.remove('circle-button');
   refs.privacyButton.classList.add('summary-action-button');
@@ -1448,6 +1478,31 @@ function renderTimestamp() {
 function renderPrivacyButton() {
   refs.privacyButton.classList.toggle('is-hidden', !state.showAmounts);
   document.body.classList.toggle('privacy-hidden', !state.showAmounts);
+  refs.privacyButton.setAttribute('aria-pressed', state.showAmounts ? 'false' : 'true');
+  refs.privacyButton.title = state.showAmounts ? '\u9690\u85cf\u91d1\u989d' : '\u663e\u793a\u91d1\u989d';
+}
+
+function applyHoldingSortSelection(nextField) {
+  if (!nextField) {
+    return;
+  }
+
+  closeActiveDividendTooltip(true);
+  const openedSwipe = refs.stockList.querySelector('.holding-swipe.is-swipe-open');
+  if (openedSwipe) {
+    closeHoldingSwipe(openedSwipe);
+  }
+
+  if (state.sortField === nextField) {
+    state.sortDirection = state.sortDirection === 'desc' ? 'asc' : 'desc';
+  } else {
+    state.sortField = nextField;
+    state.sortDirection = 'desc';
+  }
+
+  saveState();
+  renderSortChips();
+  syncRenderedHoldingsView(computeHoldings().holdings, { animateReflow: true });
 }
 
 function renderHoldings(holdings, options = {}) {
@@ -1474,7 +1529,6 @@ function renderHoldings(holdings, options = {}) {
         type="button"
         aria-label="${escapeHtml(statusLabel)}"
         aria-expanded="false"
-        title="${escapeHtml(tooltipLines.join('\n'))}"
         data-tooltip-side="left"
       >
         ${formatPercent(item.effectiveYield)}
@@ -2093,7 +2147,6 @@ function getHoldingMarkup(item, index, options = {}) {
                 type="button"
                 aria-label="${escapeHtml(view.statusLabel)}"
                 aria-expanded="false"
-                title="${escapeHtml(view.tooltipLines.join('\n'))}"
                 data-tooltip-side="left"
                 data-holding-field="effectiveYield"
               >
@@ -2157,7 +2210,7 @@ function syncHoldingRow(wrapper, item) {
   effectiveYield.className = `dividend-status-button dividend-status-button--value is-${view.statusKey}${keepTooltipOpen ? ' is-tooltip-open' : ''}`;
   effectiveYield.setAttribute('aria-label', view.statusLabel);
   effectiveYield.setAttribute('aria-expanded', keepTooltipOpen ? 'true' : 'false');
-  effectiveYield.setAttribute('title', view.tooltipLines.join('\n'));
+  effectiveYield.removeAttribute('title');
   effectiveYield.dataset.tooltipSide = 'left';
   effectiveYieldValue.textContent = view.yieldText;
   tooltip.innerHTML = view.tooltipHtml;
@@ -2683,7 +2736,24 @@ function setCloudSyncButtonBusy(isBusy) {
   state.cloudSyncing = isBusy;
   refs.exportButton.disabled = isBusy;
   refs.exportButton.classList.toggle('is-syncing', isBusy);
+  if (isBusy) {
+    window.clearTimeout(cloudSyncSuccessTimer);
+    cloudSyncSuccessTimer = 0;
+    refs.exportButton.classList.remove('is-success');
+  }
   refs.exportButton.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+}
+
+function flashCloudSyncButtonSuccess() {
+  window.clearTimeout(cloudSyncSuccessTimer);
+  refs.exportButton.classList.remove('is-syncing');
+  refs.exportButton.classList.add('is-success');
+  refs.exportButton.disabled = false;
+  refs.exportButton.setAttribute('aria-busy', 'false');
+  cloudSyncSuccessTimer = window.setTimeout(() => {
+    refs.exportButton.classList.remove('is-success');
+    cloudSyncSuccessTimer = 0;
+  }, 1200);
 }
 
 function delay(ms) {
@@ -2750,6 +2820,7 @@ async function runBackgroundMarketRefreshWait(waitContext = {}) {
     }
 
     await refreshMarketData({ silent: true });
+    flashCloudSyncButtonSuccess();
     return true;
   } catch (error) {
     console.warn('background market refresh wait failed', error);
@@ -2866,6 +2937,7 @@ async function syncPortfolioToCloud() {
   const localIsTemplate = isLocalPortfolioTemplateState();
   let restored = false;
   let keepButtonBusyInBackground = false;
+  let shouldFlashCloudSuccess = false;
 
   try {
     if (localIsTemplate) {
@@ -2911,6 +2983,8 @@ async function syncPortfolioToCloud() {
         baselineUpdatedAt: marketWaitBaselineUpdatedAt,
         requiredSymbols: watchlistResult.addedSymbols.slice()
       });
+    } else {
+      shouldFlashCloudSuccess = true;
     }
   } catch (error) {
     console.warn('cloud sync failed', error);
@@ -2918,6 +2992,9 @@ async function syncPortfolioToCloud() {
   } finally {
     if (!keepButtonBusyInBackground) {
       setCloudSyncButtonBusy(false);
+      if (shouldFlashCloudSuccess) {
+        flashCloudSyncButtonSuccess();
+      }
     }
   }
 }
@@ -3327,8 +3404,7 @@ configureUiChrome();
 refs.privacyButton.addEventListener('click', () => {
   state.showAmounts = !state.showAmounts;
   saveState();
-  document.body.classList.toggle('privacy-hidden', !state.showAmounts);
-  refs.privacyButton.classList.toggle('is-hidden', !state.showAmounts);
+  renderPrivacyButton();
 });
 
 refs.exportButton.addEventListener('click', syncPortfolioToCloud);
@@ -3359,38 +3435,11 @@ refs.sortChips.forEach((chip) => {
       if (!state.sortMenuOpen) {
         return;
       }
-      const isActive = state.sortField === nextField;
-      if (isActive) {
-        state.sortDirection = state.sortDirection === 'desc' ? 'asc' : 'desc';
-      } else {
-        state.sortField = nextField;
-        state.sortDirection = 'desc';
-      }
       state.sortMenuOpen = false;
-      saveState();
-      refs.stockList.classList.add('is-resorting');
-      setTimeout(() => {
-        renderApp();
-        requestAnimationFrame(() => {
-          refs.stockList.classList.remove('is-resorting');
-        });
-      }, 150);
+      applyHoldingSortSelection(nextField);
       return;
     }
-    if (state.sortField === nextField) {
-      state.sortDirection = state.sortDirection === 'desc' ? 'asc' : 'desc';
-    } else {
-      state.sortField = nextField;
-      state.sortDirection = 'desc';
-    }
-    saveState();
-    refs.stockList.classList.add('is-resorting');
-    setTimeout(() => {
-      renderApp();
-      requestAnimationFrame(() => {
-        refs.stockList.classList.remove('is-resorting');
-      });
-    }, 150);
+    applyHoldingSortSelection(nextField);
   });
 });
 
