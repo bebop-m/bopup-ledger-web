@@ -1,9 +1,14 @@
 {
-  "name": "bopup-ledger-web-app",
+  "name": "bopup-ledger",
+  "version": "2.0.0",
   "private": true,
-  "version": "3.0.0",
-  "description": "Static mobile web app for Bopup Ledger",
+  "type": "module",
   "scripts": {
-    "serve": "powershell -ExecutionPolicy Bypass -File ./serve.ps1"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
   }
 }
