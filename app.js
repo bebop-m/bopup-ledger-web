@@ -31,7 +31,6 @@ const GITHUB_PUBLIC_REPO = 'bebop-m/bebop-ledger-web';
 const GITHUB_PRIVATE_REPO = 'bebop-m/bebop-ledger-private';
 const GITHUB_MARKET_CONTENTS_API = `https://api.github.com/repos/${GITHUB_PUBLIC_REPO}/contents/data/market.json`;
 const GITHUB_PRIVATE_PORTFOLIO_CONTENTS_API = `https://api.github.com/repos/${GITHUB_PRIVATE_REPO}/contents/data/portfolio.json`;
-const GITHUB_PORTFOLIO_CONTENTS_API = GITHUB_PRIVATE_PORTFOLIO_CONTENTS_API;
 const GITHUB_WATCHLIST_CONTENTS_API = `https://api.github.com/repos/${GITHUB_PUBLIC_REPO}/contents/data/watchlist.json`;
 const GITHUB_MARKET_WORKFLOW_DISPATCH_API = `https://api.github.com/repos/${GITHUB_PUBLIC_REPO}/actions/workflows/update-market-data.yml/dispatches`;
 const GITHUB_TOKEN_STORAGE_KEY = 'bebop-ledger-github-token-v2';
@@ -2025,113 +2024,6 @@ async function syncPublicWatchlistFromPortfolio(token) {
     addedSymbols,
     workflowTriggered
   };
-}
-
-async function syncPortfolioToCloud() {
-  let token = getGithubToken();
-  if (!token) {
-    token = promptGithubToken();
-    if (!token) {
-      showToast(LABELS.syncTokenInvalid, { type: 'error' });
-      return;
-    }
-  }
-
-  const localHasData = state.holdings.length > 0;
-  const localLooksDefault = localHasData && state.holdings.every(
-    (h, i) => DEFAULT_HOLDINGS[i] && h.symbol === DEFAULT_HOLDINGS[i].symbol && h.quantity === DEFAULT_HOLDINGS[i].quantity
-  ) && state.holdings.length === DEFAULT_HOLDINGS.length;
-
-  if (!localHasData || localLooksDefault) {
-    const restored = await restoreFromCloud(token);
-    if (restored) {
-      await refreshMarketData({ silent: true });
-      renderApp();
-      showToast(LABELS.cloudRestored, { type: 'success' });
-      return;
-    }
-  }
-
-  const payload = buildPortfolioSnapshot();
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
-
-  try {
-    let sha = null;
-    try {
-      const existing = await fetch(GITHUB_PORTFOLIO_CONTENTS_API, {
-        headers: {
-          Accept: 'application/vnd.github+json',
-          Authorization: `Bearer ${token}`
-        }
-      });
-      if (existing.ok) {
-        const data = await existing.json();
-        sha = data.sha || null;
-      }
-    } catch (_error) {
-      // File may not exist yet — that's fine.
-    }
-
-    const body = {
-      message: 'sync: update portfolio snapshot',
-      content: content
-    };
-    if (sha) {
-      body.sha = sha;
-    }
-
-    const response = await fetch(GITHUB_PORTFOLIO_CONTENTS_API, {
-      method: 'PUT',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP ${response.status}`);
-    }
-
-    showToast(LABELS.syncSuccess, { type: 'success' });
-  } catch (error) {
-    console.warn('cloud sync failed', error);
-    showToast(LABELS.syncFailed, { type: 'error' });
-  }
-}
-
-async function restoreFromCloud(token) {
-  try {
-    const response = await fetch(GITHUB_PORTFOLIO_CONTENTS_API, {
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`
-      }
-    });
-    if (!response.ok) {
-      if (response.status === 404) {
-        return false;
-      }
-      throw new Error('portfolio fetch failed: ' + response.status);
-    }
-    const data = await response.json();
-    if (!data || typeof data.content !== 'string') {
-      return false;
-    }
-    const decoded = decodeBase64Utf8(data.content.replace(/\n/g, ''));
-    const payload = JSON.parse(decoded);
-    if (!payload || !Array.isArray(payload.holdings) || !payload.holdings.length) {
-      return false;
-    }
-    importSnapshot(payload);
-    console.log('restored portfolio from cloud');
-    return true;
-  } catch (error) {
-    console.warn('cloud restore failed', error);
-    return false;
-  }
 }
 
 async function restoreFromCloud(token) {
