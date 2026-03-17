@@ -1277,7 +1277,8 @@ function renderSummary(summary) {
     `;
 }
 
-function renderLegend(segments) {
+function renderLegend(segments, options = {}) {
+  const { animate = true } = options;
   const total = segments.reduce((sum, item) => sum + item.value, 0) || 1;
   const defaultVisible = UI_FLAGS.allocationLegendThresholdEnabled
     ? segments.filter((segment) => segment.value / total >= ALLOCATION_LEGEND_MIN_WEIGHT)
@@ -1286,7 +1287,7 @@ function renderLegend(segments) {
   const canToggleLegend = collapsedCount < segments.length;
 
   refs.companyLegend.innerHTML = segments.map((segment, index) => `
-    <div class="legend-row${index >= collapsedCount ? ' legend-row--collapsible' : ''}" style="animation-delay:${index * 30}ms">
+    <div class="legend-row${animate ? ' is-entering' : ''}${index >= collapsedCount ? ' legend-row--collapsible' : ''}" style="animation-delay:${index * 30}ms">
       <div class="legend-main">
         <span class="legend-dot" style="background:${segment.color}"></span>
         <span class="legend-label">${escapeHtml(segment.label)}</span>
@@ -1317,7 +1318,8 @@ function applyLegendExpandState() {
     : `${LABELS.expandLegend} ${refs.companyLegend.querySelectorAll('.legend-row').length} ${LABELS.itemsUnit}`;
 }
 
-function renderBuckets(segments, holdings, summary) {
+function renderBuckets(segments, holdings, summary, options = {}) {
+  const { animateDetail = true } = options;
   if (UI_FLAGS.bucketSummaryV2) {
     refs.bucketTrack.classList.add('bucket-track--summary-v2');
     const totalMarketValue = segments.reduce((sum, item) => sum + safeNumber(item.value, 0), 0);
@@ -1352,7 +1354,7 @@ function renderBuckets(segments, holdings, summary) {
         </div>
         ${UI_FLAGS.summaryOverallYieldNote ? '' : `<div class="bucket-overall-yield">${UI_TEXT.overallAverageNetYield} ${formatPercent(overallNetYield)}</div>`}
         ${activeItem ? `
-          <div class="bucket-detail-card">
+          <div class="bucket-detail-card${animateDetail ? ' is-entering' : ''}">
             <div class="bucket-detail-row">
               <span class="bucket-detail-label">${LABELS.marketValue.replace('：', '')}</span>
               <span class="bucket-detail-value">${formatDisplayMoney(activeItem.marketValueCny, 'CNY')}</span>
@@ -1447,7 +1449,8 @@ function renderPrivacyButton() {
   document.body.classList.toggle('privacy-hidden', !state.showAmounts);
 }
 
-function renderHoldings(holdings) {
+function renderHoldings(holdings, options = {}) {
+  const { animate = true } = options;
   activeDividendTooltipButton = null;
   if (!holdings.length) {
     refs.stockList.innerHTML = '<article class="holding-card empty-card"></article>';
@@ -1479,7 +1482,7 @@ function renderHoldings(holdings) {
     `;
 
     return `
-      <div class="holding-swipe" data-id="${item.localId}" style="--holding-swipe-offset:0px;animation-delay:${staggerDelay}ms;">
+      <div class="holding-swipe${animate ? ' is-entering' : ''}" data-id="${item.localId}" style="--holding-swipe-offset:0px;animation-delay:${staggerDelay}ms;">
         <button class="holding-swipe-delete" type="button" data-action="delete" aria-label="${LABELS.deleteConfirm} ${escapeHtml(item.name)}">
           <span>删除</span>
         </button>
@@ -1569,6 +1572,48 @@ function openHoldingSwipe(wrapper) {
   }
   wrapper.classList.add('is-swipe-open');
   setHoldingSwipeOffset(wrapper, HOLDING_SWIPE_DELETE_WIDTH);
+}
+
+function animateHoldingRemoval(wrapper, onComplete) {
+  if (!wrapper) {
+    onComplete();
+    return;
+  }
+
+  if (activeHoldingSwipe && activeHoldingSwipe.wrapper === wrapper) {
+    activeHoldingSwipe = null;
+  }
+  const initialHeight = wrapper.offsetHeight;
+  if (!initialHeight) {
+    onComplete();
+    return;
+  }
+
+  let settled = false;
+  const finish = () => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    wrapper.removeEventListener('transitionend', handleTransitionEnd);
+    window.clearTimeout(fallbackId);
+    onComplete();
+  };
+  const handleTransitionEnd = (event) => {
+    if (event.target !== wrapper || event.propertyName !== 'height') {
+      return;
+    }
+    finish();
+  };
+  const fallbackId = window.setTimeout(finish, 360);
+
+  wrapper.style.height = `${initialHeight}px`;
+  wrapper.getBoundingClientRect();
+  wrapper.classList.add('is-deleting');
+  wrapper.addEventListener('transitionend', handleTransitionEnd);
+  requestAnimationFrame(() => {
+    wrapper.style.height = '0px';
+  });
 }
 
 /* ----------------------------------------------------------------------------
@@ -2489,7 +2534,12 @@ async function cleanupLegacyCaches() {
 /* ----------------------------------------------------------------------------
  *  [15] BOOT & EVENT BINDINGS
  * -------------------------------------------------------------------------- */
-function renderApp() {
+function renderApp(options = {}) {
+  const {
+    animateLegend = true,
+    animateBucketDetail = true,
+    animateHoldings = true
+  } = options;
   const summary = computeHoldings();
   const companySegments = getCompanySegments(summary.holdings);
   const bucketSegments = getBucketSegments(summary.holdings);
@@ -2503,12 +2553,12 @@ function renderApp() {
 
   document.body.classList.toggle('ui-refined-accent', UI_FLAGS.refinedAccentColors);
   renderSummary(summary);
-  renderLegend(companySegments);
-  renderBuckets(bucketSegments, summary.holdings, summary);
+  renderLegend(companySegments, { animate: animateLegend });
+  renderBuckets(bucketSegments, summary.holdings, summary, { animateDetail: animateBucketDetail });
   renderSortChips();
   renderTimestamp();
   renderPrivacyButton();
-  renderHoldings(summary.holdings);
+  renderHoldings(summary.holdings, { animate: animateHoldings });
 }
 
 configureUiChrome();
@@ -2616,7 +2666,7 @@ refs.bucketTrack.addEventListener('click', (event) => {
   state.activeBucketKey = state.activeBucketKey === nextKey ? null : nextKey;
   const summary = computeHoldings();
   const bucketSegments = getBucketSegments(summary.holdings);
-  renderBuckets(bucketSegments, summary.holdings, summary);
+  renderBuckets(bucketSegments, summary.holdings, summary, { animateDetail: true });
 });
 
 refs.stockList.addEventListener('mouseover', (event) => {
@@ -2682,16 +2732,23 @@ refs.stockList.addEventListener('click', (event) => {
       if (!confirmed) return;
       const wrapper = refs.stockList.querySelector(`.holding-swipe[data-id="${localId}"]`);
       if (wrapper) {
-        wrapper.classList.add('is-deleting');
-        wrapper.addEventListener('animationend', () => {
+        animateHoldingRemoval(wrapper, () => {
           state.holdings = state.holdings.filter((item) => item.localId !== localId);
           saveState();
-          renderApp();
-        }, { once: true });
+          renderApp({
+            animateLegend: false,
+            animateBucketDetail: false,
+            animateHoldings: false
+          });
+        });
       } else {
         state.holdings = state.holdings.filter((item) => item.localId !== localId);
         saveState();
-        renderApp();
+        renderApp({
+          animateLegend: false,
+          animateBucketDetail: false,
+          animateHoldings: false
+        });
       }
     });
     return;

@@ -526,8 +526,11 @@ body:not(.privacy-hidden) .dividend-status-button--value {
   gap: 10px;
   padding: 8px 0;
   border-bottom: 1px solid var(--line-soft);
-  animation: legend-row-in 200ms var(--ease-soft) both;
   transition: opacity 200ms var(--ease-soft), transform 200ms var(--ease-soft);
+}
+
+.legend-row.is-entering {
+  animation: legend-row-in 200ms var(--ease-soft) both;
 }
 
 .legend-row--collapsible {
@@ -710,6 +713,9 @@ body:not(.privacy-hidden) .dividend-status-button--value {
   border: 1px solid var(--line);
   border-radius: 16px;
   background: linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
+}
+
+.bucket-detail-card.is-entering {
   animation: bucket-detail-in 220ms var(--ease-soft) both;
 }
 
@@ -856,7 +862,7 @@ body:not(.privacy-hidden) .dividend-status-button--value {
   opacity: 0;
 }
 
-.stock-list .holding-swipe {
+.stock-list .holding-swipe.is-entering {
   animation: holding-fade-in var(--motion-base) var(--ease-soft) both;
 }
 
@@ -871,28 +877,23 @@ body:not(.privacy-hidden) .dividend-status-button--value {
   }
 }
 
-@keyframes holding-delete-out {
-  from {
-    opacity: 1;
-    transform: translateX(0) scaleY(1);
-    transform-origin: top center;
-  }
-  to {
-    opacity: 0;
-    transform: translateX(-40px) scaleY(0);
-    transform-origin: top center;
-  }
-}
-
-.holding-swipe.is-deleting {
-  animation: holding-delete-out 280ms var(--ease-soft) forwards;
-  pointer-events: none;
-}
-
 .holding-swipe {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-lg);
+  transition:
+    height 280ms var(--ease-soft),
+    opacity 220ms var(--ease-soft);
+}
+
+.holding-swipe.is-deleting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.holding-swipe.is-deleting .holding-card {
+  transform: translateX(calc(var(--holding-swipe-offset, 0px) * -1 - 18px)) scale(0.985);
+  opacity: 0;
 }
 
 .holding-swipe::after {
@@ -1812,7 +1813,8 @@ body.ui-refined-accent .bucket-chip.is-income:not(.is-active) .bucket-chip-value
     transition:
       transform var(--motion-base) var(--ease-soft),
       border-color var(--motion-base) var(--ease-soft),
-      border-radius var(--motion-base) var(--ease-soft);
+      border-radius var(--motion-base) var(--ease-soft),
+      opacity var(--motion-base) var(--ease-soft);
   }
 
   .holding-swipe {
