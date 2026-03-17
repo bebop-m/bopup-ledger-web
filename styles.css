@@ -652,14 +652,6 @@ body:not(.privacy-hidden) .dividend-status-button--value {
   display: block;
   padding: var(--legend-row-padding-y) 0;
   border-bottom: 1px solid var(--line-soft);
-  transition:
-    max-height var(--motion-base) var(--ease-soft),
-    padding-top var(--motion-base) var(--ease-soft),
-    padding-bottom var(--motion-base) var(--ease-soft),
-    margin-top var(--motion-base) var(--ease-soft),
-    border-bottom-color 180ms var(--ease-soft),
-    opacity 180ms var(--ease-soft),
-    transform var(--motion-base) var(--ease-soft);
 }
 
 .legend-row + .legend-row {
@@ -678,30 +670,31 @@ body:not(.privacy-hidden) .dividend-status-button--value {
 }
 
 .legend-row--collapsible {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows var(--motion-base) var(--ease-soft),
+    padding-top var(--motion-base) var(--ease-soft),
+    padding-bottom var(--motion-base) var(--ease-soft),
+    margin-top var(--motion-base) var(--ease-soft),
+    border-bottom-color 180ms var(--ease-soft),
+    opacity 180ms var(--ease-soft);
+}
+
+.legend-row--collapsible > .legend-row-shell {
   overflow: hidden;
-  max-height: calc(var(--legend-row-shell-height, 18px) + (var(--legend-row-padding-y, 8px) * 2));
+  min-height: 0;
 }
 
 .legend-row--collapsible.is-collapsed {
-  max-height: 0;
+  grid-template-rows: 0fr;
   padding-top: 0;
   padding-bottom: 0;
   margin-top: 0;
   margin-bottom: 0;
   opacity: 0;
-  transform: translateY(-6px);
   border-bottom-color: transparent;
-  border-bottom-width: 0;
   pointer-events: none;
-  transition:
-    max-height var(--motion-base) var(--ease-soft),
-    padding-top var(--motion-base) var(--ease-soft),
-    padding-bottom var(--motion-base) var(--ease-soft),
-    margin-top var(--motion-base) var(--ease-soft),
-    border-bottom-color 180ms var(--ease-soft),
-    border-bottom-width 0ms var(--motion-base),
-    opacity 180ms var(--ease-soft),
-    transform var(--motion-base) var(--ease-soft);
 }
 
 .legend-row + .legend-row--collapsible.is-collapsed,
