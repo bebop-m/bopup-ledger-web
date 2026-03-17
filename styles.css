@@ -377,10 +377,6 @@ svg {
   transition: opacity 180ms var(--ease-soft);
 }
 
-.summary-grid.is-updating {
-  opacity: 0;
-}
-
 .summary-grid.summary-grid--compact-fx {
   display: block;
 }

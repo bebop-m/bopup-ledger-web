@@ -2068,7 +2068,6 @@ async function runBackgroundMarketRefreshWait(waitContext = {}) {
     }
 
     await refreshMarketData({ silent: true });
-    renderApp();
     return true;
   } catch (error) {
     console.warn('background market refresh wait failed', error);
@@ -2216,7 +2215,6 @@ async function syncPortfolioToCloud() {
     }
 
     await refreshMarketData({ silent: true });
-    renderApp();
 
     showToast(buildSyncSuccessMessage({
       restored,
@@ -2399,13 +2397,11 @@ async function refreshMarketData(options = {}) {
     }
 
     saveState();
-    refs.summaryGrid.classList.add('is-updating');
-    setTimeout(() => {
-      renderApp();
-      requestAnimationFrame(() => {
-        refs.summaryGrid.classList.remove('is-updating');
-      });
-    }, 180);
+    renderApp({
+      animateLegend: false,
+      animateBucketDetail: false,
+      animateHoldings: false
+    });
   } catch (error) {
     console.warn('refresh failed', error);
     if (!silent) {
