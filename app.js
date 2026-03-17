@@ -27,9 +27,14 @@ const MARKET_ENDPOINT = './data/market.json';
 const OVERRIDE_ENDPOINT = './data/override.json';
 const CONFIG_ENDPOINT = './config.json';
 const PORTFOLIO_SNAPSHOT_FILENAME = 'portfolio_snapshot.json';
-const GITHUB_MARKET_CONTENTS_API = 'https://api.github.com/repos/bebop-m/bopup-ledger-web/contents/data/market.json';
-const GITHUB_PORTFOLIO_CONTENTS_API = 'https://api.github.com/repos/bebop-m/bopup-ledger-web/contents/data/portfolio.json';
-const GITHUB_TOKEN_STORAGE_KEY = 'bopup-ledger-github-token';
+const GITHUB_PUBLIC_REPO = 'bebop-m/bebop-ledger-web';
+const GITHUB_PRIVATE_REPO = 'bebop-m/bebop-ledger-private';
+const GITHUB_MARKET_CONTENTS_API = `https://api.github.com/repos/${GITHUB_PUBLIC_REPO}/contents/data/market.json`;
+const GITHUB_PRIVATE_PORTFOLIO_CONTENTS_API = `https://api.github.com/repos/${GITHUB_PRIVATE_REPO}/contents/data/portfolio.json`;
+const GITHUB_PORTFOLIO_CONTENTS_API = GITHUB_PRIVATE_PORTFOLIO_CONTENTS_API;
+const GITHUB_WATCHLIST_CONTENTS_API = `https://api.github.com/repos/${GITHUB_PUBLIC_REPO}/contents/data/watchlist.json`;
+const GITHUB_MARKET_WORKFLOW_DISPATCH_API = `https://api.github.com/repos/${GITHUB_PUBLIC_REPO}/actions/workflows/update-market-data.yml/dispatches`;
+const GITHUB_TOKEN_STORAGE_KEY = 'bebop-ledger-github-token-v2';
 const TENCENT_REALTIME_ENDPOINT = 'https://qt.gtimg.cn/q=';
 const TENCENT_BATCH_SIZE = 60;
 const LEGEND_COLLAPSED_COUNT = 8;
@@ -125,11 +130,12 @@ const LABELS = {
   importConfirm: '\u5bfc\u5165\u540e\u4f1a\u8986\u76d6\u5f53\u524d\u672c\u5730\u6570\u636e\uff0c\u786e\u8ba4\u7ee7\u7eed\u5417\uff1f',
   importFailed: '\u5bfc\u5165\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u5907\u4efd\u6587\u4ef6\u3002',
   exportFailed: '\u5bfc\u51fa\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u518d\u8bd5\u3002',
-  syncSuccess: '\u5df2\u540c\u6b65\u5230\u4e91\u7aef',
-  syncFailed: '\u540c\u6b65\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5 Token \u662f\u5426\u6709\u6548\u3002',
+  syncSuccess: '\u79c1\u6709\u6301\u4ed3\u5df2\u540c\u6b65',
+  syncFailed: '\u79c1\u6709\u6301\u4ed3\u540c\u6b65\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5 Token \u6216\u4ed3\u5e93\u6743\u9650\u3002',
   syncTokenPrompt: '\u8bf7\u8f93\u5165 GitHub Personal Access Token\uff08\u53ea\u9700\u8f93\u5165\u4e00\u6b21\uff09\uff1a',
   syncTokenInvalid: 'Token \u4e0d\u80fd\u4e3a\u7a7a',
-  cloudRestored: '\u5df2\u4ece\u4e91\u7aef\u6062\u590d\u6301\u4ed3\u6570\u636e',
+  cloudRestored: '\u5df2\u4ece\u79c1\u6709\u4ed3\u5e93\u6062\u590d\u771f\u5b9e\u6301\u4ed3',
+  syncNoPrivateSnapshot: '\u672a\u53d1\u73b0\u79c1\u6709\u6301\u4ed3\uff0c\u8bf7\u5148\u65b0\u589e\u6216\u7f16\u8f91\u6301\u4ed3\u540e\u518d\u540c\u6b65\u3002',
   marketValue: '\u6301\u4ed3\u5e02\u503c\uff1a',
   quantity: '\u6570\u91cf\uff1a',
   annualDividend: '\u7a0e\u540e\u80a1\u606f\uff1a',
@@ -1746,6 +1752,187 @@ function promptGithubToken() {
   return token.trim();
 }
 
+function createGithubHeaders(token, extraHeaders = {}) {
+  return {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${token}`,
+    ...extraHeaders
+  };
+}
+
+function encodeBase64Utf8(value) {
+  return btoa(unescape(encodeURIComponent(String(value ?? ''))));
+}
+
+async function fetchGithubContentsEntry(apiUrl, token, options = {}) {
+  const { allowMissing = false } = options;
+  const response = await fetch(apiUrl, {
+    headers: createGithubHeaders(token)
+  });
+  if (!response.ok) {
+    if (allowMissing && response.status === 404) {
+      return null;
+    }
+    throw new Error(`github contents request failed: ${response.status}`);
+  }
+  return await response.json();
+}
+
+async function loadGithubJsonFile(apiUrl, token, options = {}) {
+  const entry = await fetchGithubContentsEntry(apiUrl, token, options);
+  if (!entry) {
+    return null;
+  }
+  if (typeof entry.content !== 'string') {
+    throw new Error('github contents payload missing content');
+  }
+  const decoded = decodeBase64Utf8(entry.content.replace(/\n/g, ''));
+  return {
+    sha: typeof entry.sha === 'string' ? entry.sha : null,
+    payload: JSON.parse(decoded)
+  };
+}
+
+async function saveGithubJsonFile(apiUrl, token, payload, message) {
+  const existing = await fetchGithubContentsEntry(apiUrl, token, { allowMissing: true });
+  const body = {
+    message,
+    content: encodeBase64Utf8(JSON.stringify(payload, null, 2))
+  };
+  if (existing && typeof existing.sha === 'string' && existing.sha) {
+    body.sha = existing.sha;
+  }
+  const response = await fetch(apiUrl, {
+    method: 'PUT',
+    headers: createGithubHeaders(token, {
+      'Content-Type': 'application/json'
+    }),
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `HTTP ${response.status}`);
+  }
+  return await response.json().catch(() => null);
+}
+
+function normalizeImportedSnapshotSource(payload) {
+  const source = payload && payload.state ? payload.state : payload;
+  if (source && Array.isArray(source.holdings)) {
+    return source;
+  }
+  if (source && Array.isArray(source.positions)) {
+    return { ...source, holdings: source.positions };
+  }
+  return null;
+}
+
+function isLocalPortfolioTemplateState() {
+  const localHasData = state.holdings.length > 0;
+  return localHasData && state.holdings.every(
+    (holding, index) => DEFAULT_HOLDINGS[index]
+      && holding.symbol === DEFAULT_HOLDINGS[index].symbol
+      && holding.quantity === DEFAULT_HOLDINGS[index].quantity
+  ) && state.holdings.length === DEFAULT_HOLDINGS.length;
+}
+
+function getSyncEligibleSymbols(holdings = state.holdings) {
+  return Array.from(new Set(
+    (holdings || [])
+      .filter((item) => Math.max(0, safeNumber(
+        item && item.quantity != null ? item.quantity : item && item.shares,
+        0
+      )) > 0)
+      .map((item) => normalizeSymbol(item && item.symbol))
+      .filter(Boolean)
+  ));
+}
+
+function buildSyncSuccessMessage(options = {}) {
+  const {
+    restored = false,
+    addedCount = 0,
+    workflowTriggered = false,
+    watchlistUpdateFailed = false
+  } = options;
+  let message = restored ? LABELS.cloudRestored : LABELS.syncSuccess;
+  if (watchlistUpdateFailed) {
+    return `${message}\uff0c\u4f46\u516c\u5f00\u89c2\u5bdf\u540d\u5355\u66f4\u65b0\u5931\u8d25\u3002`;
+  }
+  if (addedCount > 0) {
+    message += `\uff0c${addedCount} \u53ea\u65b0\u80a1\u7968\u5df2\u52a0\u5165\u516c\u5f00\u89c2\u5bdf\u540d\u5355`;
+    message += workflowTriggered
+      ? '\uff0c\u884c\u60c5\u66f4\u65b0\u5df2\u89e6\u53d1\u3002'
+      : '\uff0c\u884c\u60c5\u5c06\u5728\u5b9a\u65f6\u4efb\u52a1\u4e2d\u8865\u9f50\u3002';
+  }
+  return message;
+}
+
+async function uploadPrivatePortfolioSnapshot(token) {
+  await saveGithubJsonFile(
+    GITHUB_PRIVATE_PORTFOLIO_CONTENTS_API,
+    token,
+    buildPortfolioSnapshot(),
+    'sync: update private portfolio snapshot'
+  );
+}
+
+async function dispatchMarketUpdateWorkflow(token) {
+  const response = await fetch(GITHUB_MARKET_WORKFLOW_DISPATCH_API, {
+    method: 'POST',
+    headers: createGithubHeaders(token, {
+      'Content-Type': 'application/json'
+    }),
+    body: JSON.stringify({ ref: 'main' })
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `HTTP ${response.status}`);
+  }
+}
+
+async function syncPublicWatchlistFromPortfolio(token) {
+  const file = await loadGithubJsonFile(GITHUB_WATCHLIST_CONTENTS_API, token);
+  const payload = file && file.payload && typeof file.payload === 'object'
+    ? file.payload
+    : { symbols: [] };
+  const existingSymbols = Array.isArray(payload.symbols)
+    ? payload.symbols.map((symbol) => normalizeSymbol(symbol)).filter(Boolean)
+    : [];
+  const portfolioSymbols = getSyncEligibleSymbols();
+  const addedSymbols = portfolioSymbols.filter((symbol) => !existingSymbols.includes(symbol));
+
+  if (!addedSymbols.length) {
+    return {
+      addedSymbols: [],
+      workflowTriggered: false
+    };
+  }
+
+  await saveGithubJsonFile(
+    GITHUB_WATCHLIST_CONTENTS_API,
+    token,
+    {
+      ...payload,
+      symbols: existingSymbols.concat(addedSymbols)
+    },
+    'sync: append symbols to public watchlist'
+  );
+
+  let workflowTriggered = false;
+  try {
+    await dispatchMarketUpdateWorkflow(token);
+    workflowTriggered = true;
+  } catch (error) {
+    console.warn('market update workflow dispatch failed', error);
+  }
+
+  return {
+    addedSymbols,
+    workflowTriggered
+  };
+}
+
 async function syncPortfolioToCloud() {
   let token = getGithubToken();
   if (!token) {
@@ -1853,6 +2040,85 @@ async function restoreFromCloud(token) {
   }
 }
 
+async function restoreFromCloud(token) {
+  try {
+    const file = await loadGithubJsonFile(
+      GITHUB_PRIVATE_PORTFOLIO_CONTENTS_API,
+      token,
+      { allowMissing: true }
+    );
+    if (!file) {
+      return { restored: false, reason: 'missing' };
+    }
+    const normalizedSource = normalizeImportedSnapshotSource(file.payload);
+    if (!normalizedSource || !Array.isArray(normalizedSource.holdings) || !normalizedSource.holdings.length) {
+      return { restored: false, reason: 'missing' };
+    }
+    importSnapshot(normalizedSource);
+    console.log('restored portfolio from private repo');
+    return { restored: true };
+  } catch (error) {
+    console.warn('private portfolio restore failed', error);
+    return { restored: false, reason: 'error', error };
+  }
+}
+
+async function syncPortfolioToCloud() {
+  let token = getGithubToken();
+  if (!token) {
+    token = promptGithubToken();
+    if (!token) {
+      showToast(LABELS.syncTokenInvalid, { type: 'error' });
+      return;
+    }
+  }
+
+  const localIsTemplate = isLocalPortfolioTemplateState();
+  let restored = false;
+
+  try {
+    if (localIsTemplate) {
+      const restoreResult = await restoreFromCloud(token);
+      if (restoreResult.reason === 'error') {
+        showToast(LABELS.syncFailed, { type: 'error' });
+        return;
+      }
+      if (!restoreResult.restored) {
+        showToast(LABELS.syncNoPrivateSnapshot, { type: 'error' });
+        return;
+      }
+      restored = true;
+    } else {
+      await uploadPrivatePortfolioSnapshot(token);
+    }
+
+    let watchlistResult = {
+      addedSymbols: [],
+      workflowTriggered: false
+    };
+    let watchlistUpdateFailed = false;
+    try {
+      watchlistResult = await syncPublicWatchlistFromPortfolio(token);
+    } catch (error) {
+      watchlistUpdateFailed = true;
+      console.warn('public watchlist sync failed', error);
+    }
+
+    await refreshMarketData({ silent: true });
+    renderApp();
+
+    showToast(buildSyncSuccessMessage({
+      restored,
+      addedCount: watchlistResult.addedSymbols.length,
+      workflowTriggered: watchlistResult.workflowTriggered,
+      watchlistUpdateFailed
+    }), { type: watchlistUpdateFailed ? 'error' : 'success' });
+  } catch (error) {
+    console.warn('cloud sync failed', error);
+    showToast(LABELS.syncFailed, { type: 'error' });
+  }
+}
+
 function exportPortfolioSnapshot() {
   try {
     const payload = buildPortfolioSnapshot();
@@ -1872,12 +2138,7 @@ function exportPortfolioSnapshot() {
 }
 
 function importSnapshot(payload) {
-  const source = payload && payload.state ? payload.state : payload;
-  const normalizedSource = source && Array.isArray(source.holdings)
-    ? source
-    : source && Array.isArray(source.positions)
-      ? { ...source, holdings: source.positions }
-      : source;
+  const normalizedSource = normalizeImportedSnapshotSource(payload);
   if (!normalizedSource || !Array.isArray(normalizedSource.holdings)) {
     throw new Error('invalid backup payload');
   }
@@ -2555,4 +2816,3 @@ async function boot() {
 }
 
 boot();
-
